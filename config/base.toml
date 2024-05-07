@@ -1,0 +1,12 @@
+# Base configuration file.
+# ------------------------
+# These settings are applied unless environment variables override any of the
+# following variables.
+
+# Debug flag for the whole system.
+debug = false
+
+[application]
+# Telegram API Token - override me!
+api_token = "my_api_token"
+

@@ -1,0 +1,15 @@
+[package]
+name = "shortbot"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+config = { version = "0.14", features = ["yaml"] }
+secrecy = { version = "0.8", features = ["serde"] }
+serde = { version = "1.0.200", features = ["serde_derive"] }
+teloxide = { version = "0.12.2", features = ["macros"] }
+tokio = {version = "1.8", features = ["rt-multi-thread", "macros"]}
+serde_derive = "1.0"
+tracing = { version = "0.1", features = ["log"] }
