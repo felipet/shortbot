@@ -1,11 +1,21 @@
 //! Handler for the /help command.
 
-use crate::HandlerResult;
-use teloxide::prelude::*;
+use crate::{CommandEng, HandlerResult};
+use teloxide::{prelude::*, utils::command::BotCommands};
+use tracing::info;
 
 /// Help handler.
+#[tracing::instrument(
+    name = "Help handler",
+    skip(bot, msg),
+    fields(
+        chat_id = %msg.chat.id,
+    )
+)]
 pub async fn help(bot: Bot, msg: Message) -> HandlerResult {
-    bot.send_message(msg.chat.id, "DBG::Help command").await?;
+    info!("Command /help called");
+    bot.send_message(msg.chat.id, CommandEng::descriptions().to_string())
+        .await?;
 
     Ok(())
 }

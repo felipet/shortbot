@@ -21,8 +21,8 @@ const CONF_DIR: &str = "config";
 #[derive(Debug, Deserialize)]
 #[allow(unused)]
 pub struct Settings {
-    /// Whether debug should be enabled or not.
-    pub debug: bool,
+    /// Level for the tracing crate.
+    pub tracing_level: String,
     /// Application specific settings.
     pub application: ApplicationSettings,
 }
