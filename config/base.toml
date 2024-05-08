@@ -3,8 +3,8 @@
 # These settings are applied unless environment variables override any of the
 # following variables.
 
-# Debug flag for the whole system.
-debug = false
+# Tracing level.
+tracing_level = "info"
 
 [application]
 # Telegram API Token - override me!

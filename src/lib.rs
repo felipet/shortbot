@@ -3,6 +3,7 @@
 use teloxide::utils::command::BotCommands;
 
 pub mod configuration;
+pub mod telemetry;
 
 // Bring all the endpoints to the main context.
 pub mod endpoints {
@@ -39,10 +40,13 @@ pub enum State {
 ///
 /// TODO! document the commands.
 #[derive(BotCommands, Clone)]
-#[command(rename_rule = "camelCase")]
+#[command(
+    rename_rule = "camelCase",
+    description = "These commands are supported by the Bot:"
+)]
 pub enum CommandEng {
-    /// Start command
+    #[command(description = "Start a new session.")]
     Start,
-    /// Help message
+    #[command(description = "Display this message.")]
     Help,
 }
