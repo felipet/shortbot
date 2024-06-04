@@ -14,9 +14,9 @@ pub fn get_subscriber(tracing_level: &str) -> impl Subscriber + Send + Sync {
         _ => Level::TRACE,
     };
 
-    let subscriber = FmtSubscriber::builder()
+    FmtSubscriber::builder()
         .with_max_level(tracing_level)
-        .finish();
+        .finish()
 }
 
 pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
