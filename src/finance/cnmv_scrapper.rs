@@ -3,12 +3,12 @@
 //! Module that includes logic related to the extraction of data from the web page
 //! of the Spanish _Comisión Nacional de Mercado de Valores (CNMV)_.
 
-use tracing::{debug, trace};
+use crate::finance::IbexCompany;
+use crate::finance::{AliveShortPositions, ShortPosition};
+use date::Date;
 use reqwest;
 use scraper::{Html, Selector};
-use date::Date;
-use crate::finance::IbexCompany;
-use crate::finance::{ShortPosition, AliveShortPositions};
+use tracing::{debug, trace};
 
 /// `enum` to handle what endpoints of the CNMV's API are supported by this module.
 enum EndpointSel {
@@ -19,7 +19,7 @@ enum EndpointSel {
 
 /// Data type that checks whether a response for a short position request succeeded or not.
 #[derive(Debug)]
-pub struct ShortResponse (String);
+pub struct ShortResponse(String);
 
 impl ShortResponse {
     /// Use this method to check whether a response of the GET method returned valid
@@ -76,7 +76,7 @@ impl CNMVProvider {
     async fn collect_data(
         &self,
         endpoint: EndpointSel,
-        stock_id: &str
+        stock_id: &str,
     ) -> Result<ShortResponse, CNMVError> {
         // Select the endpoint that shall be used for the requested GET.
         let endpoint = match endpoint {
@@ -85,20 +85,20 @@ impl CNMVProvider {
 
         debug!("GET requested for the CNMV endpoint: {endpoint}");
 
-        let resp =
-            reqwest::get(format!("{}/{}{stock_id}", self.base_url, endpoint))
-                .await
-                .map_err(|e| CNMVError::ExternalError(e.to_string()))?;
+        let resp = reqwest::get(format!("{}/{}{stock_id}", self.base_url, endpoint))
+            .await
+            .map_err(|e| CNMVError::ExternalError(e.to_string()))?;
         if resp.status().as_u16() != 200 {
-            return Err(CNMVError::ExternalError(resp.status().as_str().to_string()))
+            return Err(CNMVError::ExternalError(resp.status().as_str().to_string()));
         } else {
             let response = ShortResponse::parse(
-                    resp.text().await.map_err(|e| CNMVError::InternalError(e.to_string()))?
-                )?;
+                resp.text()
+                    .await
+                    .map_err(|e| CNMVError::InternalError(e.to_string()))?,
+            )?;
             trace!("Response: {:#?}", response);
-            return Ok(response)
+            return Ok(response);
         }
-
     }
 
     /// Method that checks alive short positions of a stock.
@@ -129,10 +129,7 @@ impl CNMVProvider {
             None => return Err(CNMVError::UnknownCompany),
         };
 
-        let raw_data = self.collect_data(
-                EndpointSel::ShortEP,
-                id)
-            .await?;
+        let raw_data = self.collect_data(EndpointSel::ShortEP, id).await?;
 
         let document = Html::parse_document(raw_data.as_ref());
         let selector_td = Selector::parse("td").unwrap();
@@ -151,19 +148,31 @@ impl CNMVProvider {
                     }
                 } else if let Some(x) = td.attr("data-th") {
                     if x == "% sobre el capital" {
-                        weight = td.text().next().unwrap().replace(",", ".").parse::<f32>().unwrap();
+                        weight = td
+                            .text()
+                            .next()
+                            .unwrap()
+                            .replace(",", ".")
+                            .parse::<f32>()
+                            .unwrap();
                     } else if x == "Fecha de la posición" {
                         date = String::from(td.text().next().unwrap());
                     }
                 }
             }
             if &owner[..] != "dummy" {
-                positions.push(ShortPosition {owner, weight, date});
+                positions.push(ShortPosition {
+                    owner,
+                    weight,
+                    date,
+                });
             }
         }
 
         let mut total = 0.0;
-        positions.iter().for_each(|position| total+= position.weight );
+        positions
+            .iter()
+            .for_each(|position| total += position.weight);
         let date = Date::today_utc();
 
         Ok(AliveShortPositions {
@@ -225,12 +234,11 @@ mod tests {
             .unwrap()
             .block_on(async {
                 // Send a request to the external API
-                let raw_content = provider.collect_data(
-                        EndpointSel::ShortEP,
-                        a_company.extra_id().unwrap())
+                let raw_content = provider
+                    .collect_data(EndpointSel::ShortEP, a_company.extra_id().unwrap())
                     .await;
                 assert!(raw_content.is_ok());
-        })
+            })
     }
 
     #[rstest]
@@ -245,13 +253,12 @@ mod tests {
             .unwrap()
             .block_on(async {
                 // Send a request to the external API
-                let raw_content = provider.collect_data(
-                        EndpointSel::ShortEP,
-                        not_a_company.extra_id().unwrap())
+                let raw_content = provider
+                    .collect_data(EndpointSel::ShortEP, not_a_company.extra_id().unwrap())
                     .await;
 
                 assert!(raw_content.is_err());
-        })
+            })
     }
 
     #[rstest]
@@ -266,12 +273,14 @@ mod tests {
             .unwrap()
             .block_on(async {
                 // Send a request to the external API
-                let short_position = provider.short_positions(
-                        &a_company)
-                    .await;
+                let short_position = provider.short_positions(&a_company).await;
                 assert!(short_position.is_ok());
-                println!("Short position of {}:{:#?}", a_company, short_position.unwrap());
-        })
+                println!(
+                    "Short position of {}:{:#?}",
+                    a_company,
+                    short_position.unwrap()
+                );
+            })
     }
 
     #[rstest]
@@ -286,10 +295,8 @@ mod tests {
             .unwrap()
             .block_on(async {
                 // Send a request to the external API
-                let short_position = provider.short_positions(
-                        &not_a_company)
-                    .await;
+                let short_position = provider.short_positions(&not_a_company).await;
                 assert!(short_position.is_err());
-        })
+            })
     }
 }
