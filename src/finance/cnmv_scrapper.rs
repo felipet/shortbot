@@ -63,6 +63,13 @@ pub struct CNMVProvider {
     short_ext: String,
 }
 
+impl Default for CNMVProvider {
+    /// Default implementation delegates to [CNMVProvider::new].
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CNMVProvider {
     /// Class constructor.
     pub fn new() -> CNMVProvider {
@@ -89,7 +96,7 @@ impl CNMVProvider {
             .await
             .map_err(|e| CNMVError::ExternalError(e.to_string()))?;
         if resp.status().as_u16() != 200 {
-            return Err(CNMVError::ExternalError(resp.status().as_str().to_string()));
+            Err(CNMVError::ExternalError(resp.status().as_str().to_string()))
         } else {
             let response = ShortResponse::parse(
                 resp.text()
@@ -97,7 +104,7 @@ impl CNMVProvider {
                     .map_err(|e| CNMVError::InternalError(e.to_string()))?,
             )?;
             trace!("Response: {:#?}", response);
-            return Ok(response);
+            Ok(response)
         }
     }
 
@@ -152,7 +159,7 @@ impl CNMVProvider {
                             .text()
                             .next()
                             .unwrap()
-                            .replace(",", ".")
+                            .replace(',', ".")
                             .parse::<f32>()
                             .unwrap();
                     } else if x == "Fecha de la posición" {
