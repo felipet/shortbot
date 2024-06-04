@@ -27,10 +27,11 @@ pub async fn receive_stock(
         bot.send_message(
             dialogue.chat_id(),
             format!(
-                "You chose the Ibex35 company: {}",
+                "You chose the Ibex35 company: <b>{}</b>\nChecking alive short positions...",
                 stock_market.stock_by_ticker(ticker).unwrap().name()
             ),
         )
+        .parse_mode(ParseMode::Html)
         .await?;
     } else {
         bot.send_message(dialogue.chat_id(), "No stock given")
