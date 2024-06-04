@@ -1,0 +1,254 @@
+# Ibex35 definition file
+
+# Entry template
+# [<BME TICKER>]
+# full_name = <Full name of the company (legal name)>
+# name = <Most used contraction of the name>
+# isin = <ISIN>
+# ticker = <BME TICKER>
+# extra_id = <NIF>
+
+[ANA]
+full_name = "ACCIONA S.A."
+name = "ACCIONA"
+isin = "ES0125220311"
+ticker = "ANA"
+extra_id = "A08001851"
+
+[ANE]
+full_name = "Corporación Acciona Energías Renovables S.A."
+name = "ACCIONA ENERGIA"
+isin = "ES0105563003"
+ticker = "ANE"
+extra_id = "A85483311"
+
+[ACX]
+full_name = "Acerinox S.A."
+name = "ACERINOX"
+isin = "ES0132105018"
+ticker = "ACX"
+extra_id = "A-28250777"
+
+[ACS]
+full_name = "Actividades de Construcción y Servicios S.A."
+name = "ACS"
+isin = "ES0167050915"
+ticker = "ACS"
+extra_id = "A-28004885"
+
+[AENA]
+full_name = "AENA S.A."
+name = "AENA"
+isin = "ES0105046009"
+ticker = "AENA"
+extra_id = "A86212420"
+
+[AMS]
+full_name = "Amadeus IT Holding S.A."
+name = "AMADEUS"
+isin = "ES0109067019"
+ticker = "AMS"
+extra_id = "A-84236934"
+
+[MTS]
+full_name = "ArcelorMittal S.A."
+name = "ARCELORMITTAL"
+isin = "LU1598757687"
+ticker = "MTS"
+extra_id = ""
+
+[SAN]
+full_name = "Banco Santander S.A."
+name = "BANCO SANTANDER"
+isin = "ES0113900J37"
+ticker = "SAN"
+extra_id = "A39000013"
+
+[SAB]
+full_name = "Banco de Sabadell SA"
+name = "BANCO SABADELL"
+isin = "ES0113860A34"
+ticker = "SAB"
+extra_id = "A-08000143"
+
+[BKT]
+full_name = "Bankinter S.A."
+name = "BANKINTER"
+isin = "ES0113679I37"
+ticker = "BKT"
+extra_id = "A28157360"
+
+[BBVA]
+full_name = "Banco Bilbao Vizcaya Argentaria SA"
+name = "BBVA"
+isin = "ES0113211835"
+ticker = "BBVA"
+extra_id = "A-48265169"
+
+[CABK]
+full_name = "CaixaBank S.A."
+name = "CAIXABANK"
+isin = "ES0140609019"
+ticker = "CABK"
+extra_id = "A08663619"
+
+[CLNX]
+full_name = "Cellnex Telecom S.A."
+name = "CELLNEX"
+isin = "ES0105066007"
+ticker = "CLNX"
+extra_id = "A64907306"
+
+[ENG]
+full_name = "Enagás S.A."
+name = "ENAGAS"
+isin = "ES0130960018"
+ticker = "ENG"
+extra_id = "A-28294726"
+
+[ELE]
+full_name = "Endesa S.A."
+name = "ENDESA"
+isin = "ES0130670112"
+ticker = "ELE"
+extra_id = "A-28023430"
+
+[FER]
+full_name = "Ferrovial S.E."
+name = "FERROVIAL"
+isin = "NL0015001FS8"
+ticker = "FER"
+extra_id = ""
+
+[FDR]
+full_name = "Fluidra S.A."
+name = "FLUIDRA"
+isin = "ES0137650018"
+ticker = "FDR"
+extra_id = "A-17728593"
+
+[GRF]
+full_name = "Grifols Clase A"
+name = "GRIFOLS"
+isin = "ES0171996087"
+ticker = "GRF"
+extra_id = "A-58389123"
+
+[IAG]
+full_name = "International Consolidated Airlines Group S.A."
+name = "IAG"
+isin = "ES0177542018"
+ticker = "IAG"
+extra_id = "A85845535"
+
+[IBE]
+full_name = "Iberdrola S.A."
+name = "IBERDROLA"
+isin = "ES0144580Y14"
+ticker = "IBE"
+extra_id = "A-48010615"
+
+[ITX]
+full_name = "Industria de Diseño Textil"
+name = "INDITEX"
+isin = "ES0148396007"
+ticker = "ITX"
+extra_id = "A-15075062"
+
+[IDR]
+full_name = "INDRA Serie A"
+name = "INDRA"
+isin = "ES0118594417"
+ticker = "IDR"
+extra_id = "A-28599033"
+
+[COL]
+full_name = "Inmobiliaria Colonial"
+name = "COLONIAL"
+isin = "ES0139140174"
+ticker = "COL"
+extra_id = "A-28027399"
+
+[LOG]
+full_name = "Logista Integral S.A."
+name = "LOGISTA"
+isin = "ES0105027009"
+ticker = "LOG"
+extra_id = "A87008579"
+
+[MAP]
+full_name = "MAPFRE S.A."
+name = "MAPFRE"
+isin = "ES0124244E34"
+ticker = "MAP"
+extra_id = "A08055741"
+
+[MEL]
+full_name = "Melia Hotels International"
+name = "MELIA"
+isin = "ES0176252718"
+ticker = "MEL"
+extra_id = "A78304516"
+
+[MRL]
+full_name = "Merlin Properties"
+name = "MERLIN"
+isin = "ES0105025003"
+ticker = "MRL"
+extra_id = "A86977790"
+
+[NTGY]
+full_name = "Naturgy Energy Group"
+name = "NATURGY"
+isin = "ES0116870314"
+ticker = "NTGY"
+extra_id = "A-08015497"
+
+[RED]
+full_name = "Redeia Corporación"
+name = "REDEIA"
+isin = "ES0173093024"
+ticker = "RED"
+extra_id = "A-78003662"
+
+[REP]
+full_name = "Repsol"
+name = "REPSOL"
+isin = "ES0173516115"
+ticker = "REP"
+extra_id = "A78374725"
+
+[ROVI]
+full_name = "Laboratorios Rovi"
+name = "ROVI"
+isin = "ES0157261019"
+ticker = "ROVI"
+extra_id = "A-28041283"
+
+[SCYR]
+full_name = "SACYR"
+name = "SACYR"
+isin = "ES0182870214"
+ticker = "SCYR"
+extra_id = "A-28013811"
+
+[SLR]
+full_name = "Solaria Energia y Medio Ambiente"
+name = "SOLARIA"
+isin = "ES0165386014"
+ticker = "SLR"
+extra_id = "A83511501"
+
+[TEF]
+full_name = "Telefónica"
+name = "TELEFONICA"
+isin = "ES0178430E18"
+ticker = "TEF"
+extra_id = "A28015865"
+
+[UNI]
+full_name = "Unicaja Banco"
+name = "UNICAJA"
+isin = "ES0180907000"
+ticker = "UNI"
+extra_id = "A93139053"
