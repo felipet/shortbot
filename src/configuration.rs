@@ -25,6 +25,8 @@ pub struct Settings {
     pub tracing_level: String,
     /// Application specific settings.
     pub application: ApplicationSettings,
+    /// Data folder path.
+    pub data_path: String,
 }
 
 /// Settings of the ShortBot application.

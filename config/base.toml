@@ -6,6 +6,9 @@
 # Tracing level.
 tracing_level = "info"
 
+# Data path
+data_path = "./data"
+
 [application]
 # Telegram API Token - override me!
 api_token = "my_api_token"
