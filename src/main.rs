@@ -1,7 +1,7 @@
 //! Main file of the Shortbot
 
 use secrecy::ExposeSecret;
-use shortbot::finance::load_ibex35_companies;
+use finance_ibex::load_ibex35_companies;
 use shortbot::{
     configuration::Settings,
     handlers,

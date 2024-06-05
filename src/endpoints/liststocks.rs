@@ -1,6 +1,6 @@
 //! Handler that lists all the available stocks to the client.
 
-use crate::finance::Ibex35Market;
+use finance_api::Market;
 use crate::{HandlerResult, ShortBotDialogue, State};
 use std::sync::Arc;
 use teloxide::{
@@ -8,6 +8,7 @@ use teloxide::{
     types::{InlineKeyboardButton, InlineKeyboardMarkup},
 };
 use tracing::{info, trace};
+
 
 #[tracing::instrument(
     name = "List stocks handler",
@@ -20,7 +21,7 @@ pub async fn list_stocks(
     bot: Bot,
     dialogue: ShortBotDialogue,
     msg: Message,
-    stock_market: Arc<Ibex35Market>,
+    stock_market: Arc<dyn Market + Sync + Send>,
 ) -> HandlerResult {
     info!("Command /ChooseStock called");
 
