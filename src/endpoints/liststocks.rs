@@ -50,13 +50,13 @@ pub async fn list_stocks(
     }
 
     // Populate rows by chunks of `cols_per_row` buttons
-    for i in 1..(stock_len / cols_per_row) - 1 {
+    for i in 1..(stock_len / cols_per_row) {
         for j in 0..cols_per_row {
             keyboard_markup = keyboard_markup.append_to_row(
                 i,
                 InlineKeyboardButton::callback::<&str, &str>(
-                    market[i + j * cols_per_row].as_ref(),
-                    market[i + j * cols_per_row].as_ref(),
+                    market[j + i * cols_per_row].as_ref(),
+                    market[j + i * cols_per_row].as_ref(),
                 ),
             );
         }
