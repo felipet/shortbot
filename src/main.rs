@@ -38,6 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Dispatcher::builder(bot, handlers::schema())
         .dependencies(dptree::deps![ibex35_clone, InMemStorage::<State>::new()])
+        .enable_ctrlc_handler()
         .build()
         .dispatch()
         .await;
