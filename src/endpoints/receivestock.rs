@@ -59,7 +59,7 @@ pub async fn receive_stock(
             .parse_mode(ParseMode::Html)
             .await?;
     } else {
-        bot.send_message(dialogue.chat_id(), "No short positions")
+        bot.send_message(dialogue.chat_id(), "Information not available")
             .await?;
     }
 

@@ -26,7 +26,10 @@ impl ShortResponse {
     /// content or not.
     pub fn parse(s: String) -> Result<Self, CNMVError> {
         match s.find("No se han encontrado datos disponibles") {
-            Some(_) => Err(CNMVError::UnknownCompany),
+            Some(_) => match s.find("Serie histórica") {
+                Some(_) => Ok(Self(s)),
+                None => Err(CNMVError::UnknownCompany),
+            },
             None => Ok(Self(s)),
         }
     }
