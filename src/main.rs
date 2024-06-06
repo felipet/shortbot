@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .dispatch()
         .await;
 
-    info!("Closed ShortBot server");
+    info!("Gracefully closed ShortBot server");
 
     Ok(())
 }

@@ -13,7 +13,7 @@ use tracing::info;
     )
 )]
 pub async fn start(bot: Bot, msg: Message) -> HandlerResult {
-    info!("Command /start called");
+    info!("Command /start requested");
 
     let client_name = get_client_name(&msg);
 

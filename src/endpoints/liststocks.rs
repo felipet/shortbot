@@ -22,7 +22,7 @@ pub async fn list_stocks(
     msg: Message,
     stock_market: Arc<Ibex35Market>,
 ) -> HandlerResult {
-    info!("Command /ChooseStock called");
+    info!("Command /choosestock requested");
 
     let market = stock_market.list_tickers();
     trace!(
