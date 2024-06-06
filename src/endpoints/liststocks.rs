@@ -31,51 +31,43 @@ pub async fn list_stocks(
         market
     );
 
-    // Present the tickers in a table with 4 columns to reduce the number of rows.
-    let mut i: usize = 0;
-    let rows = 4;
-    let mut keyboard_markup = InlineKeyboardMarkup::new([vec![
-        InlineKeyboardButton::callback::<&str, &str>(market[i].as_ref(), market[i].as_ref()),
-        InlineKeyboardButton::callback::<&str, &str>(
-            market[i + 1].as_ref(),
-            market[i + 1].as_ref(),
-        ),
-        InlineKeyboardButton::callback::<&str, &str>(
-            market[i + 2].as_ref(),
-            market[i + 2].as_ref(),
-        ),
-        InlineKeyboardButton::callback::<&str, &str>(
-            market[i + 3].as_ref(),
-            market[i + 3].as_ref(),
-        ),
-    ]]);
+    // Present the tickers in a table with 5 columns to reduce the number of rows.
+    let cols_per_row: usize = 5;
     let stock_len = market.len();
-    i += rows;
 
-    while i < stock_len - rows {
-        keyboard_markup = keyboard_markup.append_row(vec![
-            InlineKeyboardButton::callback::<&str, &str>(market[i].as_ref(), market[i].as_ref()),
-            InlineKeyboardButton::callback::<&str, &str>(
-                market[i + 1].as_ref(),
-                market[i + 1].as_ref(),
-            ),
-            InlineKeyboardButton::callback::<&str, &str>(
-                market[i + 2].as_ref(),
-                market[i + 2].as_ref(),
-            ),
-            InlineKeyboardButton::callback::<&str, &str>(
-                market[i + 3].as_ref(),
-                market[i + 3].as_ref(),
-            ),
-        ]);
+    // Populate the first row
+    let mut keyboard_markup =
+        InlineKeyboardMarkup::new([vec![InlineKeyboardButton::callback::<&str, &str>(
+            market[0].as_ref(),
+            market[0].as_ref(),
+        )]]);
 
-        i += rows;
+    for j in 1..cols_per_row {
+        keyboard_markup = keyboard_markup.append_to_row(
+            0,
+            InlineKeyboardButton::callback::<&str, &str>(market[j].as_ref(), market[j].as_ref()),
+        );
     }
 
-    if stock_len % 4 != 0 {
+    // Populate rows by chunks of `cols_per_row` buttons
+    for i in 1..(stock_len / cols_per_row) - 1 {
+        for j in 0..cols_per_row {
+            keyboard_markup = keyboard_markup.append_to_row(
+                i,
+                InlineKeyboardButton::callback::<&str, &str>(
+                    market[i + j * cols_per_row].as_ref(),
+                    market[i + j * cols_per_row].as_ref(),
+                ),
+            );
+        }
+    }
+
+    // Finally, add the remainder in case the number of items is not divisible by `cols_per_row`
+    if stock_len % cols_per_row != 0 {
+        let mut i = stock_len - cols_per_row;
         while i < stock_len {
             keyboard_markup = keyboard_markup.append_to_row(
-                stock_len / rows + 1,
+                stock_len / cols_per_row + 1,
                 InlineKeyboardButton::callback::<&str, &str>(
                     market[i].as_ref(),
                     market[i].as_ref(),
