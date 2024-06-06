@@ -2,7 +2,7 @@
 
 use crate::{CommandEng, HandlerResult};
 use teloxide::{prelude::*, utils::command::BotCommands};
-use tracing::debug;
+use tracing::info;
 
 /// Help handler.
 #[tracing::instrument(
@@ -13,7 +13,7 @@ use tracing::debug;
     )
 )]
 pub async fn help(bot: Bot, msg: Message) -> HandlerResult {
-    debug!("Command /help called");
+    info!("Command /help requested");
     bot.send_message(msg.chat.id, CommandEng::descriptions().to_string())
         .await?;
 

@@ -21,8 +21,6 @@ pub async fn receive_stock(
     stock_market: Arc<Ibex35Market>,
     q: CallbackQuery,
 ) -> HandlerResult {
-    info!("State ReceiveStocks");
-
     if let Some(ticker) = &q.data {
         bot.send_message(
             dialogue.chat_id(),
@@ -33,22 +31,27 @@ pub async fn receive_stock(
         )
         .parse_mode(ParseMode::Html)
         .await?;
+        info!("Selected stock: {}", ticker);
     } else {
         bot.send_message(dialogue.chat_id(), "No stock given")
             .await?;
+        info!("No valid ticker was received");
     }
 
     let provider = CNMVProvider::new();
     let stock_object = stock_market.stock_by_ticker(&q.data.unwrap()[..]).unwrap();
-    debug!("Stock entry: {stock_object}");
+    debug!("Stock descriptor: {stock_object}");
     let positions = provider.short_positions(stock_object).await;
-    info!("Received data: {:?}", positions);
+    debug!("Received AliveShortPositions: {:?}", positions);
 
     if positions.is_ok() {
         let shorts = positions.unwrap();
         bot.send_message(
             dialogue.chat_id(),
-            format!("The total of short positions is: <b>{:.2} %</b>", shorts.total),
+            format!(
+                "The total of short positions is: <b>{:.2} %</b>",
+                shorts.total
+            ),
         )
         .parse_mode(ParseMode::Html)
         .await?;
@@ -60,6 +63,7 @@ pub async fn receive_stock(
             .await?;
     }
 
+    info!("Short position request served");
     dialogue.exit().await?;
 
     Ok(())
