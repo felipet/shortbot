@@ -49,15 +49,12 @@ pub async fn receive_stock(
         bot.send_message(
             dialogue.chat_id(),
             format!(
-                "The total of short positions is: <b>{:.2} %</b>",
-                shorts.total
+                include_str!("../../data/templates/short_position_brief.txt"),
+                shorts.total, shorts,
             ),
         )
         .parse_mode(ParseMode::Html)
         .await?;
-        bot.send_message(dialogue.chat_id(), format!("{}", shorts))
-            .parse_mode(ParseMode::Html)
-            .await?;
     } else {
         bot.send_message(dialogue.chat_id(), "Information not available")
             .await?;
