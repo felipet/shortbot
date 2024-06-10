@@ -46,11 +46,17 @@ pub async fn receive_stock(
 
     if positions.is_ok() {
         let shorts = positions.unwrap();
+        // Build the second part of the message only if there are alive short positions.
+        let s = if shorts.total <= 0.0 {
+            "".to_owned()
+        } else {
+            format!("\nList of individual positions:\n{}", shorts)
+        };
         bot.send_message(
             dialogue.chat_id(),
             format!(
                 include_str!("../../data/templates/short_position_brief.txt"),
-                shorts.total, shorts,
+                shorts.total, &s,
             ),
         )
         .parse_mode(ParseMode::Html)

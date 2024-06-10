@@ -1,4 +1,2 @@
 𝚺 The position weight is: <b>{:.2} %</b>
-
-List of individual positions:
 {}
