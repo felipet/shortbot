@@ -42,10 +42,10 @@ pub async fn list_stocks(
             market[0].as_ref(),
         )]]);
 
-    for j in 1..cols_per_row {
+    for company in market.iter().take(cols_per_row).skip(1) {
         keyboard_markup = keyboard_markup.append_to_row(
             0,
-            InlineKeyboardButton::callback::<&str, &str>(market[j].as_ref(), market[j].as_ref()),
+            InlineKeyboardButton::callback::<&str, &str>(company, company),
         );
     }
 
