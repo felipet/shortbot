@@ -7,11 +7,11 @@ use teloxide::{
     prelude::*,
     types::{InlineKeyboardButton, InlineKeyboardMarkup},
 };
-use tracing::{info, trace};
+use tracing::{debug, info, trace};
 
 #[tracing::instrument(
     name = "List stocks handler",
-    skip(bot, dialogue, msg, stock_market),
+    skip(bot, dialogue, msg, stock_market, update),
     fields(
         chat_id = %msg.chat.id,
     )
@@ -21,8 +21,17 @@ pub async fn list_stocks(
     dialogue: ShortBotDialogue,
     msg: Message,
     stock_market: Arc<Ibex35Market>,
+    update: Update,
 ) -> HandlerResult {
-    info!("Command /choosestock requested");
+    info!("Command /short requested");
+
+    // Let's try to retrieve the user's language.
+    let lang_code = match update.user() {
+        Some(user) => user.language_code.clone(),
+        None => None,
+    };
+
+    debug!("The user's language code is: {:?}", lang_code);
 
     let market = stock_market.list_tickers();
     trace!(
@@ -78,7 +87,7 @@ pub async fn list_stocks(
         }
     }
 
-    bot.send_message(msg.chat.id, "Select a stock ticker:")
+    bot.send_message(msg.chat.id, _select_stock_message(lang_code.as_deref()))
         .reply_markup(keyboard_markup)
         .await?;
 
@@ -87,4 +96,13 @@ pub async fn list_stocks(
     dialogue.update(State::ReceiveStock).await?;
 
     Ok(())
+}
+
+fn _select_stock_message(lang_code: Option<&str>) -> String {
+    let lang_code = lang_code.unwrap_or("en");
+
+    match lang_code {
+        "es" => String::from("Selecciona un ticker:"),
+        _ => String::from("Select a ticker:"),
+    }
 }
