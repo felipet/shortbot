@@ -8,10 +8,13 @@ use shortbot::{
     telemetry::{get_subscriber, init_subscriber},
     State, IBEX35_STOCK_DESCRIPTORS,
 };
+use shortbot::{CommandEng, CommandSpa};
 use std::sync::Arc;
 use teloxide::dispatching::dialogue::InMemStorage;
+use teloxide::payloads::SetMyCommandsSetters;
 use teloxide::prelude::*;
-use tracing::info;
+use teloxide::utils::command::BotCommands;
+use tracing::{debug, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -31,6 +34,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Started ShortBot server");
 
     let bot = Bot::new(settings.application.api_token.expose_secret());
+
+    // Configure the supported languages of the Bot.
+    debug!("Setting up commands of the bot");
+    bot.set_my_commands(CommandSpa::bot_commands())
+        .language_code("es")
+        .await?;
+    bot.set_my_commands(CommandEng::bot_commands())
+        .language_code("en")
+        .await?;
 
     info!("Dispatching");
 
