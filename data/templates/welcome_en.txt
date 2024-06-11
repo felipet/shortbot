@@ -1,0 +1,4 @@
+Welcome {} to the Ibex35 ShortBot 🕵️!
+
+This bot simplifies checking if a stock has ⤵️ short positions against it at the moment.
+To start up, just type /short or check the bot's help using /help.
