@@ -7,7 +7,7 @@
 //! All valid combinations of Messages and States shall be contemplated in the implementation
 //! of this handler.
 
-use crate::{endpoints::*, CommandEng, State};
+use crate::{endpoints::*, CommandEng, CommandSpa, State};
 use teloxide::{
     dispatching::{dialogue, dialogue::InMemStorage, UpdateHandler},
     prelude::*,
@@ -17,15 +17,23 @@ use teloxide::{
 pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>> {
     use dptree::case;
 
-    let command_handler = teloxide::filter_command::<CommandEng, _>().branch(
+    let command_handler_eng = teloxide::filter_command::<CommandEng, _>().branch(
         case![State::Start]
             .branch(case![CommandEng::Start].endpoint(start))
             .branch(case![CommandEng::Help].endpoint(help))
-            .branch(case![CommandEng::ChooseStock].endpoint(list_stocks)),
+            .branch(case![CommandEng::Short].endpoint(list_stocks)),
+    );
+
+    let command_handler_spa = teloxide::filter_command::<CommandSpa, _>().branch(
+        case![State::Start]
+            .branch(case![CommandSpa::Inicio].endpoint(start))
+            .branch(case![CommandSpa::Ayuda].endpoint(help))
+            .branch(case![CommandSpa::Short].endpoint(list_stocks)),
     );
 
     let message_handler = Update::filter_message()
-        .branch(command_handler)
+        .branch(command_handler_eng)
+        .branch(command_handler_spa)
         .branch(case![State::ListStocks].endpoint(list_stocks));
 
     let query_handler =

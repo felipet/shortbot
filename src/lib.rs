@@ -48,23 +48,34 @@ pub enum State {
     ReceiveStock,
 }
 
-/// Application commands in English language
-///
-/// # Description
-///
-/// TODO! document the commands.
+/// User commands in English language
 #[derive(BotCommands, Clone)]
 #[command(
-    rename_rule = "lowercase",
+    rename_rule = "camelCase",
     description = "These commands are supported by the Bot:"
 )]
 pub enum CommandEng {
-    #[command(description = "Start a new session.")]
+    #[command(description = "Start a new session")]
     Start,
-    #[command(description = "Display this message.")]
+    #[command(description = "Display help message")]
     Help,
-    #[command(description = "List available stocks.")]
-    ChooseStock,
+    #[command(description = "Check short position of a stock")]
+    Short,
+}
+
+/// User commands in Spanish language
+#[derive(BotCommands, Clone)]
+#[command(
+    rename_rule = "camelCase",
+    description = "Estos son los comandos soportados por el Bot:"
+)]
+pub enum CommandSpa {
+    #[command(description = "Iniciar una nueva sesión")]
+    Inicio,
+    #[command(description = "Mostrar la ayuda")]
+    Ayuda,
+    #[command(description = "Consultar posiciones de una acción")]
+    Short,
 }
 
 /// Finance module.
