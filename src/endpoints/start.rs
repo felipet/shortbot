@@ -2,29 +2,38 @@
 
 use crate::HandlerResult;
 use teloxide::prelude::*;
-use tracing::info;
+use tracing::{debug, info};
 
 /// Start handler.
 #[tracing::instrument(
     name = "Start handler",
-    skip(bot, msg),
+    skip(bot, msg, update),
     fields(
         chat_id = %msg.chat.id,
     )
 )]
-pub async fn start(bot: Bot, msg: Message) -> HandlerResult {
+pub async fn start(bot: Bot, msg: Message, update: Update) -> HandlerResult {
     info!("Command /start requested");
 
     let client_name = get_client_name(&msg);
 
-    let messages = vec![
-        format!("Welcome {} to the Ibex35 ShortBot!", client_name,),
-        "Type /help to see the Bot's help message.".to_owned(),
-    ];
+    // Let's ry to retrieve the user of the chat.
+    let lang_code = match update.user() {
+        Some(user) => user.language_code.clone(),
+        None => None,
+    };
 
-    for message in messages {
-        bot.send_message(msg.chat.id, message).await?;
-    }
+    debug!("The user's language code is: {:?}", lang_code);
+
+    let message = match lang_code {
+        Some(lang_code) => match lang_code.as_str() {
+            "es" => _start_es(&client_name),
+            _ => _start_en(&client_name),
+        },
+        _ => _start_en(&client_name),
+    };
+
+    bot.send_message(msg.chat.id, message).await?;
 
     Ok(())
 }
@@ -40,4 +49,20 @@ fn get_client_name(msg: &Message) -> String {
             None => String::from("investor"),
         }
     }
+}
+
+/// Start handler (English version).
+fn _start_en(username: &str) -> String {
+    format!(
+        include_str!("../../data/templates/welcome_en.txt"),
+        username,
+    )
+}
+
+/// Start handler (Spanish version).
+fn _start_es(username: &str) -> String {
+    format!(
+        include_str!("../../data/templates/welcome_es.txt"),
+        username,
+    )
 }
