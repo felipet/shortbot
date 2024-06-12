@@ -1,5 +1,6 @@
 //! Handler that lists all the available stocks to the client.
 
+use crate::finance::AliveShortPositions;
 use crate::finance::CNMVProvider;
 use crate::finance::Ibex35Market;
 use crate::{HandlerResult, ShortBotDialogue};
@@ -10,7 +11,7 @@ use tracing::{debug, info};
 
 #[tracing::instrument(
     name = "Receive stock handler",
-    skip(bot, dialogue, stock_market, q),
+    skip(bot, dialogue, stock_market, q, update),
     fields(
         chat_id = %dialogue.chat_id(),
     )
@@ -20,25 +21,45 @@ pub async fn receive_stock(
     dialogue: ShortBotDialogue,
     stock_market: Arc<Ibex35Market>,
     q: CallbackQuery,
+    update: Update,
 ) -> HandlerResult {
+    // Let's try to retrieve the user of the chat.
+    let lang_code = match update.user() {
+        Some(user) => user.language_code.clone(),
+        None => None,
+    };
+
+    let lang_code = match lang_code.as_deref().unwrap_or("en") {
+        "es" => "es",
+        _ => "en",
+    };
+
+    debug!("The user's language code is: {:?}", lang_code);
+
     if let Some(ticker) = &q.data {
-        bot.send_message(
-            dialogue.chat_id(),
-            format!(
-                "You chose the Ibex35 company: <b>{}</b>\nChecking alive short positions...",
-                stock_market.stock_by_ticker(ticker).unwrap().name()
-            ),
-        )
-        .parse_mode(ParseMode::Html)
-        .await?;
+        let message = match lang_code {
+            "es" => _chose_es(stock_market.stock_by_ticker(ticker).unwrap().name()),
+            _ => _chose_en(stock_market.stock_by_ticker(ticker).unwrap().name()),
+        };
+
+        bot.send_message(dialogue.chat_id(), message)
+            .parse_mode(ParseMode::Html)
+            .await?;
         info!("Selected stock: {}", ticker);
     } else {
-        bot.send_message(dialogue.chat_id(), "No stock given")
-            .await?;
+        bot.send_message(
+            dialogue.chat_id(),
+            if lang_code == "es" {
+                "Ninguna empresa seleccionada."
+            } else {
+                "No stock was given."
+            },
+        )
+        .await?;
         info!("No valid ticker was received");
         info!("Short position request served");
         dialogue.exit().await?;
-        return Ok(())
+        return Ok(());
     }
 
     let provider = CNMVProvider::new();
@@ -49,28 +70,72 @@ pub async fn receive_stock(
 
     if positions.is_ok() {
         let shorts = positions.unwrap();
-        // Build the second part of the message only if there are alive short positions.
-        let s = if shorts.total <= 0.0 {
-            "".to_owned()
+
+        if shorts.total <= 0.0 {
+            bot.send_message(dialogue.chat_id(), _no_shorts_msg(lang_code))
+                .parse_mode(ParseMode::Html)
+                .await?;
         } else {
-            format!("\nList of individual positions:\n{}", shorts)
-        };
-        bot.send_message(
-            dialogue.chat_id(),
-            format!(
-                include_str!("../../data/templates/short_position_brief.txt"),
-                shorts.total, &s,
-            ),
-        )
-        .parse_mode(ParseMode::Html)
-        .await?;
+            // Build the second part of the message only if there are alive short positions.
+            let message = match lang_code {
+                "es" => _shorts_msg_es(&shorts),
+                _ => _shorts_msg_en(&shorts),
+            };
+            bot.send_message(dialogue.chat_id(), message)
+                .parse_mode(ParseMode::Html)
+                .await?;
+        }
     } else {
-        bot.send_message(dialogue.chat_id(), "Information not available")
-            .await?;
+        let message = if lang_code == "es" {
+            "Información no disponible"
+        } else {
+            "Information not available"
+        };
+        bot.send_message(dialogue.chat_id(), message).await?;
     }
 
     info!("Short position request served");
     dialogue.exit().await?;
 
     Ok(())
+}
+
+fn _chose_es(stock_name: &str) -> String {
+    format!(
+        include_str!("../../data/templates/chose_es.txt"),
+        stock_name,
+    )
+}
+
+fn _chose_en(stock_name: &str) -> String {
+    format!(
+        include_str!("../../data/templates/chose_en.txt"),
+        stock_name,
+    )
+}
+
+fn _no_shorts_msg(lang_code: &str) -> &str {
+    match lang_code {
+        "es" => "<b>No hay posiciones en corto notificadas</b> (>=0.5%)",
+        _ => "<b>There are no open short positions</b> (>= 0.5%)",
+    }
+}
+
+fn _shorts_msg_en(shorts: &AliveShortPositions) -> String {
+    let s = format!(
+        include_str!("../../data/templates/short_position_en.txt"),
+        shorts.total,
+    );
+    format!("{}{}{}", s, "\n\nList of individual positions:\n", shorts,)
+}
+
+fn _shorts_msg_es(shorts: &AliveShortPositions) -> String {
+    let s = format!(
+        include_str!("../../data/templates/short_position_es.txt"),
+        shorts.total,
+    );
+    format!(
+        "{}{}{}",
+        s, "\n\nLista de posiciones individuales:\n", shorts,
+    )
 }
