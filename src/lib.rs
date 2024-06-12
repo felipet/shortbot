@@ -13,11 +13,13 @@ pub const IBEX35_STOCK_DESCRIPTORS: &str = "ibex35.toml";
 
 // Bring all the endpoints to the main context.
 pub mod endpoints {
+    mod default;
     mod help;
     mod liststocks;
     mod receivestock;
     mod start;
 
+    pub use default::default;
     pub use help::help;
     pub use liststocks::list_stocks;
     pub use receivestock::receive_stock;

@@ -34,7 +34,8 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
     let message_handler = Update::filter_message()
         .branch(command_handler_eng)
         .branch(command_handler_spa)
-        .branch(case![State::ListStocks].endpoint(list_stocks));
+        .branch(case![State::ListStocks].endpoint(list_stocks))
+        .endpoint(default);
 
     let query_handler =
         Update::filter_callback_query().branch(case![State::ReceiveStock].endpoint(receive_stock));
