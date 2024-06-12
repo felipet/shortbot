@@ -36,6 +36,9 @@ pub async fn receive_stock(
         bot.send_message(dialogue.chat_id(), "No stock given")
             .await?;
         info!("No valid ticker was received");
+        info!("Short position request served");
+        dialogue.exit().await?;
+        return Ok(())
     }
 
     let provider = CNMVProvider::new();
