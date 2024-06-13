@@ -1,0 +1,7 @@
+🧑‍💻 Do you enjoy using this bot? I do enjoy developing it. It heavily simplifies the way in which short positions can be checked, as CNMV's web page is really annoying.
+
+I'm still full of ideas to foster this bot: position tracking, new short positions watcher, graphs and a long etc. However, this takes a considerable amount of my time.
+
+♥️ If you want to show me your gratitude, you can <a href="https://buymeacoffee.com/felipetg">buy me a coffee</a> or donate through Paypal (torresfelipex1@gmail.com).
+
+A big thanks!!
