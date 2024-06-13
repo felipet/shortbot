@@ -1,15 +1,11 @@
-![GitHub License](https://img.shields.io/github/license/felipet/shortbot)
-![GitHub Release](https://img.shields.io/github/v/release/felipet/shortbot)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/felipet/shortbot/rust.yml?branch=development&style=flat&label=CI%20status&link=https%3A%2F%2Fgithub.com%2Ffelipet%2Fshortbot%2Factions%2Fworkflows%2Frust.yml)
-![Last Release](https://img.shields.io/github/v/tag/felipet/shortbot?include_prereleases)
-
-
-
 <div align=center>
 <img src="data/img/ShortBot_logo_main.png" width=100px style="border-radius: 50%"/>
 <h1><a href="https://t.me/ibexshortbot">@IbexShortBot</a></h1>
 </div>
 
+![GitHub License](https://img.shields.io/github/license/felipet/shortbot)
+![GitHub Release](https://img.shields.io/github/v/release/felipet/shortbot)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/felipet/shortbot/rust.yml?branch=development&style=flat&label=CI%20status&link=https%3A%2F%2Fgithub.com%2Ffelipet%2Fshortbot%2Factions%2Fworkflows%2Frust.yml)
 
 This is a [Telegram bot](https://core.telegram.org/bots) that helps investors to keep
 track of short positions against stock companies that belong to the [Ibex35][ibex35].
