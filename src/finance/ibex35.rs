@@ -1,4 +1,16 @@
 // Copyright 2024 Felipe Torres González
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//        http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS,
+//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//    See the License for the specific language governing permissions and
+//    limitations under the License.
 
 use crate::finance::IbexCompany;
 use std::fs::read_to_string;
@@ -25,7 +37,7 @@ pub struct Ibex35Market {
     company_map: HashMap<String, IbexCompany>,
 }
 
-/// The [Market] trait object only allows reading data once is built.
+/// The Market trait object only allows reading data once is built.
 unsafe impl Sync for Ibex35Market {}
 unsafe impl Send for Ibex35Market {}
 
@@ -38,7 +50,7 @@ impl Ibex35Market {
     /// the Ibex35 at the moment of the instantiation.
     ///
     /// Each entry of the collection is identified by the company's ticker and
-    /// an object that implements the [Company] trait as value.
+    /// an object that implements the Company trait as value.
     ///
     /// The constructor has no logic to check whether the input companies are compliant
     /// with the invariant of the [Ibex35Market], this means that valid companies must
@@ -77,7 +89,7 @@ impl Ibex35Market {
         tickers
     }
 
-    /// Get a reference to a [Company] object included in the market.
+    /// Get a reference to a Company object included in the market.
     ///
     /// # Description
     ///
@@ -89,7 +101,7 @@ impl Ibex35Market {
     /// ## Returns
     ///
     /// A wrapped vector with a list of references to stock descriptors (objects that
-    /// implement the [Company] trait) that match `name`. `None` is returned when no
+    /// implement the Company trait) that match `name`. `None` is returned when no
     /// stocks have been found matching `name` with their respective names.
     pub fn stock_by_name(&self, name: &str) -> Option<Vec<&IbexCompany>> {
         let mut stocks = Vec::new();
@@ -108,7 +120,7 @@ impl Ibex35Market {
         }
     }
 
-    /// Get a reference to a [Company] object included in the market.
+    /// Get a reference to a Company object included in the market.
     ///
     /// # Description
     ///
@@ -118,7 +130,7 @@ impl Ibex35Market {
     ///
     /// ## Returns
     ///
-    /// In contrast to the method [stock_by_name](Market::stock_by_name), this method will
+    /// In contrast to the method `stock_by_name`, this method will
     /// return a wrapped reference to an object that implements the `Company` trait
     /// whose ticker is equal to `ticker`, otherwise `None` will be returned.
     pub fn stock_by_ticker(&self, ticker: &str) -> Option<&IbexCompany> {
@@ -156,7 +168,7 @@ impl Ibex35Market {
         &self.currency
     }
 
-    /// Get a reference to a [Company] object included in the market.
+    /// Get a reference to a Company object included in the market.
     ///
     /// # Description
     ///
@@ -168,7 +180,7 @@ impl Ibex35Market {
     /// ## Returns
     ///
     /// A wrapped vector with a list of references to stock descriptors (objects that
-    /// implement the [Company] trait) that match `name`. `None` is returned when no
+    /// implement the Company trait) that match `name`. `None` is returned when no
     /// stocks have been found matching `name` with their respective names.
     pub fn get_companies(&self) -> Vec<&IbexCompany> {
         self.company_map.values().collect()
@@ -218,7 +230,7 @@ impl fmt::Debug for Ibex35Market {
 ///
 /// ## Returns
 ///
-/// An `enum` `Result<T, &str>` in which `T` implements the [Market] trait, and
+/// An `enum` `Result<T, &str>` in which `T` implements the Market trait, and
 /// the `str` indicates an error message.
 pub fn load_ibex35_companies(path: &str) -> Result<Ibex35Market, &'static str> {
     info!("File {path} will be parsed to find stock descriptors.");
