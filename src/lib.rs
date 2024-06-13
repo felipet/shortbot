@@ -18,12 +18,14 @@ pub mod endpoints {
     mod liststocks;
     mod receivestock;
     mod start;
+    mod support;
 
     pub use default::default;
     pub use help::help;
     pub use liststocks::list_stocks;
     pub use receivestock::receive_stock;
     pub use start::start;
+    pub use support::support;
 }
 
 // Bring all the handlers to the main context.
@@ -63,6 +65,8 @@ pub enum CommandEng {
     Help,
     #[command(description = "Check short position of a stock")]
     Short,
+    #[command(description = "Show support information")]
+    Support,
 }
 
 /// User commands in Spanish language
@@ -78,6 +82,8 @@ pub enum CommandSpa {
     Ayuda,
     #[command(description = "Consultar posiciones de una acción")]
     Short,
+    #[command(description = "Mostrar información de apoyo")]
+    Apoyo,
 }
 
 /// Finance module.
