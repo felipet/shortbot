@@ -132,7 +132,7 @@ full_name = "Grifols Clase A"
 name = "GRIFOLS"
 isin = "ES0171996087"
 ticker = "GRF"
-extra_id = "A-58389123"
+extra_id = "A58389123"
 
 [IAG]
 full_name = "International Consolidated Airlines Group S.A."
