@@ -231,7 +231,7 @@ mod tests {
             "GRIFOLS",
             "GRF",
             "ES0171996087",
-            Some("A-58389123"),
+            Some("A58389123"),
         )
     }
 
