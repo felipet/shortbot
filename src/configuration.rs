@@ -25,7 +25,7 @@
 //! are meant to be used within this module shall use the prefix _SHORTBOT_.
 
 use config::{Config, ConfigError, Environment, File};
-use secrecy::Secret;
+use secrecy::SecretString;
 use serde_derive::Deserialize;
 
 /// Name of the directory in which configuration files will be stored.
@@ -52,7 +52,7 @@ pub struct Settings {
 #[derive(Debug, Deserialize)]
 #[allow(unused)]
 pub struct ApplicationSettings {
-    pub api_token: Secret<String>,
+    pub api_token: SecretString,
 }
 
 impl Settings {
