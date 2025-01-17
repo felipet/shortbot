@@ -21,18 +21,18 @@ use tracing::{debug, info};
 /// Start handler.
 #[tracing::instrument(
     name = "Start handler",
-    skip(bot, msg, update),
+    skip(bot, msg),
     fields(
         chat_id = %msg.chat.id,
     )
 )]
-pub async fn start(bot: Bot, msg: Message, update: Update) -> HandlerResult {
+pub async fn start(bot: Bot, msg: Message) -> HandlerResult {
     info!("Command /start requested");
 
     let client_name = get_client_name(&msg);
 
     // Let's ry to retrieve the user of the chat.
-    let lang_code = match update.user() {
+    let lang_code = match msg.from {
         Some(user) => user.language_code.clone(),
         None => None,
     };

@@ -25,7 +25,7 @@ use tracing::{debug, info};
 
 #[tracing::instrument(
     name = "Receive stock handler",
-    skip(bot, dialogue, stock_market, q, update),
+    skip(bot, dialogue, stock_market, q),
     fields(
         chat_id = %dialogue.chat_id(),
     )
@@ -35,15 +35,9 @@ pub async fn receive_stock(
     dialogue: ShortBotDialogue,
     stock_market: Arc<Ibex35Market>,
     q: CallbackQuery,
-    update: Update,
 ) -> HandlerResult {
     // Let's try to retrieve the user of the chat.
-    let lang_code = match update.user() {
-        Some(user) => user.language_code.clone(),
-        None => None,
-    };
-
-    let lang_code = match lang_code.as_deref().unwrap_or("en") {
+    let lang_code = match q.from.language_code.as_deref().unwrap_or("en") {
         "es" => "es",
         _ => "en",
     };

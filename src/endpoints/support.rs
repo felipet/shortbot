@@ -21,16 +21,16 @@ use tracing::{debug, info};
 /// Support handler.
 #[tracing::instrument(
     name = "Support handler",
-    skip(bot, msg, update),
+    skip(bot, msg),
     fields(
         chat_id = %msg.chat.id,
     )
 )]
-pub async fn support(bot: Bot, msg: Message, update: Update) -> HandlerResult {
+pub async fn support(bot: Bot, msg: Message) -> HandlerResult {
     info!("Command /support requested");
 
     // First, try to retrieve the user of the chat.
-    let lang_code = match update.user() {
+    let lang_code = match msg.from {
         Some(user) => user.language_code.clone(),
         None => None,
     };
@@ -47,7 +47,6 @@ pub async fn support(bot: Bot, msg: Message, update: Update) -> HandlerResult {
 
     bot.send_message(msg.chat.id, message)
         .parse_mode(ParseMode::Html)
-        .disable_web_page_preview(true)
         .await?;
 
     Ok(())

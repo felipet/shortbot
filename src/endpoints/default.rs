@@ -1,4 +1,4 @@
-// Copyright 2024 Felipe Torres González
+// Copyright 2024-2025 Felipe Torres González
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -21,16 +21,16 @@ use tracing::{debug, info};
 /// Help handler.
 #[tracing::instrument(
     name = "Default handler",
-    skip(bot, msg, update),
+    skip(bot, msg),
     fields(
         chat_id = %msg.chat.id,
     )
 )]
-pub async fn default(bot: Bot, msg: Message, update: Update) -> HandlerResult {
+pub async fn default(bot: Bot, msg: Message) -> HandlerResult {
     info!("Garbage sent");
 
     // First, try to retrieve the user of the chat.
-    let lang_code = match update.user() {
+    let lang_code = match msg.from {
         Some(user) => user.language_code.clone(),
         None => None,
     };

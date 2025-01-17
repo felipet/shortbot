@@ -9,7 +9,7 @@ edition = "2021"
 config = { version = "0.15.6", features = ["yaml"] }
 secrecy = { version = "0.10.3", features = ["serde"] }
 serde = { version = "1.0.217", features = ["serde_derive"] }
-teloxide = { version = "0.12.2", features = ["macros", "ctrlc_handler"] }
+teloxide = { version = "0.13.0", features = ["macros", "ctrlc_handler"] }
 tokio = {version = "1.8", features = ["rt-multi-thread", "macros"]}
 serde_derive = "1.0"
 tracing = { version = "0.1", features = ["log"] }

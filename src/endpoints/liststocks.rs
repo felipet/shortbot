@@ -25,7 +25,7 @@ use tracing::{debug, info, trace};
 
 #[tracing::instrument(
     name = "List stocks handler",
-    skip(bot, dialogue, msg, stock_market, update),
+    skip(bot, dialogue, msg, stock_market),
     fields(
         chat_id = %msg.chat.id,
     )
@@ -35,12 +35,11 @@ pub async fn list_stocks(
     dialogue: ShortBotDialogue,
     msg: Message,
     stock_market: Arc<Ibex35Market>,
-    update: Update,
 ) -> HandlerResult {
     info!("Command /short requested");
 
     // Let's try to retrieve the user's language.
-    let lang_code = match update.user() {
+    let lang_code = match msg.from {
         Some(user) => user.language_code.clone(),
         None => None,
     };
