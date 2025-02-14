@@ -15,15 +15,13 @@
 //! Main file of the Shortbot
 
 use secrecy::ExposeSecret;
-use shortbot::finance::load_ibex35_companies;
 use shortbot::{
     configuration::Settings,
     handlers,
     telemetry::{get_subscriber, init_subscriber},
-    State, IBEX35_STOCK_DESCRIPTORS,
+    State,
 };
 use shortbot::{CommandEng, CommandSpa};
-use std::sync::Arc;
 use teloxide::dispatching::dialogue::InMemStorage;
 use teloxide::payloads::SetMyCommandsSetters;
 use teloxide::prelude::*;
@@ -39,11 +37,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let subscriber = get_subscriber(settings.tracing_level.as_str());
     init_subscriber(subscriber);
 
-    let ibexdata_path = std::path::PathBuf::from(settings.data_path).join(IBEX35_STOCK_DESCRIPTORS);
-
-    let ibex35 = load_ibex35_companies(ibexdata_path.as_os_str().to_str().unwrap())
-        .expect("Failed to parse IBEX35 companies.");
-    let ibex35 = Arc::new(ibex35);
 
     info!("Started ShortBot server");
 
@@ -60,10 +53,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Dispatching");
 
-    let ibex35_clone = Arc::clone(&ibex35);
-
     Dispatcher::builder(bot, handlers::schema())
-        .dependencies(dptree::deps![ibex35_clone, InMemStorage::<State>::new()])
+        .dependencies(dptree::deps![InMemStorage::<State>::new()])
         .enable_ctrlc_handler()
         .build()
         .dispatch()
