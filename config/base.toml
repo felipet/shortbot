@@ -13,3 +13,8 @@ data_path = "./data"
 # Telegram API Token - override me!
 api_token = "my_api_token"
 
+[database]
+questdb_host = "127.0.0.1"
+questdb_port = 8812
+questdb_user = "user"
+questdb_password = "password"
