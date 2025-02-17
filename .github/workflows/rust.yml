@@ -5,8 +5,16 @@ name: Rust CI Flow
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - 'src/**'
+      - 'Dockerfile'
+      - 'Cargo.**'
   pull_request:
     branches: [ "main", "development" ]
+    paths:
+      - 'src/**'
+      - 'Dockerfile'
+      - 'Cargo.**'
 
 env:
   CARGO_TERM_COLOR: always
