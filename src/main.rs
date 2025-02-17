@@ -1,4 +1,18 @@
-// Copyright 2024 Felipe Torres González
+// Copyright 2025 Felipe Torres González
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//        http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS,
+//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//    See the License for the specific language governing permissions and
+//    limitations under the License.
+
+// Copyright 2024-2025 Felipe Torres González
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -22,6 +36,7 @@ use shortbot::{
     State,
 };
 use shortbot::{CommandEng, CommandSpa};
+use std::sync::Arc;
 use teloxide::dispatching::dialogue::InMemStorage;
 use teloxide::payloads::SetMyCommandsSetters;
 use teloxide::prelude::*;
@@ -37,6 +52,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let subscriber = get_subscriber(settings.tracing_level.as_str());
     init_subscriber(subscriber);
 
+    // Initialize the short cache.
+    let short_cache = shortbot::ShortCache::connect_backend(&settings.database).await?;
 
     info!("Started ShortBot server");
 
@@ -54,7 +71,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Dispatching");
 
     Dispatcher::builder(bot, handlers::schema())
-        .dependencies(dptree::deps![InMemStorage::<State>::new()])
+        .dependencies(dptree::deps![
+            Arc::new(short_cache),
+            InMemStorage::<State>::new()
+        ])
         .enable_ctrlc_handler()
         .build()
         .dispatch()

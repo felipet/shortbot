@@ -1,6 +1,6 @@
 [package]
 name = "shortbot"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -18,7 +18,11 @@ pretty_assertions = "1.4.1"
 rstest = "0.24.0"
 toml = "0.8.19"
 scraper = "0.22.0"
-date-rs = "1.0.1"
 reqwest = { version = "0.12.12", features = ["json"] }
 thiserror = "2.0.11"
 sqlx = { version = "0.8", features = [ "runtime-tokio", "postgres", "macros", "uuid", "chrono" ] }
+finance_ibex = "0.1.0-beta1"
+finance_api = "0.1.0"
+data_harvest = "0.2.1"
+uuid = { version = "1.13.1", features = ["v4"] }
+chrono = { version = "0.4.38", features = ["alloc", "std", "clock"] }
