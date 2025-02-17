@@ -2,10 +2,11 @@
 
 # Build stage ---------------
 
-FROM rust:1.78.0 AS builder
+FROM rust:1.84.1 AS builder
 
 WORKDIR /app
 COPY . .
+ENV SQLX_OFFLINE=true
 RUN cargo build --release
 
 # Runtime stage -------------
