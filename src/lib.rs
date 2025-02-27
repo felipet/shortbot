@@ -100,4 +100,3 @@ pub enum CommandSpa {
     #[command(description = "Mostrar información de apoyo")]
     Apoyo,
 }
-

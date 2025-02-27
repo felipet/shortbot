@@ -22,11 +22,11 @@ use shortbot::{
     State,
 };
 use shortbot::{CommandEng, CommandSpa};
-use std::sync::Arc;
-use teloxide::dispatching::dialogue::InMemStorage;
-use teloxide::payloads::SetMyCommandsSetters;
-use teloxide::prelude::*;
-use teloxide::utils::command::BotCommands;
+use std::{net::SocketAddr, str::FromStr, sync::Arc};
+use teloxide::{
+    dispatching::dialogue::InMemStorage, payloads::SetMyCommandsSetters, prelude::*,
+    update_listeners::webhooks, utils::command::BotCommands,
+};
 use tracing::{debug, info};
 
 #[tokio::main]
@@ -41,9 +41,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the short cache.
     let short_cache = shortbot::ShortCache::connect_backend(&settings.database).await?;
 
+    // Build an Axum HTTP server.
+    //TODO
+
+    let http_server_address = SocketAddr::from_str(&format!(
+        "{}:{}",
+        &settings.application.http_server_host, settings.application.http_server_port
+    ))
+    .expect("Failed to build a socket usig the configuration");
+
     info!("Started ShortBot server");
 
     let bot = Bot::new(settings.application.api_token.expose_secret());
+
+    // Build a listener based on the axum server.
+    let listener = webhooks::axum(
+        bot.clone(),
+        webhooks::Options::new(
+            http_server_address,
+            settings.application.webhook_url.parse().unwrap(),
+        ),
+    )
+    .await?;
 
     // Configure the supported languages of the Bot.
     debug!("Setting up commands of the bot");
@@ -63,7 +82,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ])
         .enable_ctrlc_handler()
         .build()
-        .dispatch()
+        .dispatch_with_listener(
+            listener,
+            LoggingErrorHandler::with_custom_text("Teloxide-Log"),
+        )
         .await;
 
     info!("Gracefully closed ShortBot server");

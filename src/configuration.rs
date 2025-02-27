@@ -56,6 +56,10 @@ pub struct Settings {
 #[allow(unused)]
 pub struct ApplicationSettings {
     pub api_token: SecretString,
+    pub http_server_host: String,
+    pub http_server_port: u16,
+    pub webhook_url: String,
+    pub webhook_token: SecretString,
 }
 
 impl Settings {
