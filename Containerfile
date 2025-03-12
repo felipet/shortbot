@@ -1,8 +1,6 @@
-# syntax=docker/dockerfile:1
-
 # Build stage ---------------
 
-FROM rust:1.84.1 AS builder
+FROM docker.io/rust:1.85.0 AS builder
 
 WORKDIR /app
 COPY . .
@@ -11,7 +9,7 @@ RUN cargo build --release
 
 # Runtime stage -------------
 
-FROM debian:bookworm-slim AS runtime
+FROM docker.io/rust:1.85.0-slim-bookworm AS runtime
 WORKDIR /app
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends openssl ca-certificates \
