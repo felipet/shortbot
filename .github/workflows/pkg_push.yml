@@ -19,7 +19,9 @@ jobs:
                 login_username: ${{ github.actor }}
                 login_password: ${{ secrets.REGISTRY_TOKEN }}
                 dockerfile: ./Containerfile
+                labels: io.containers.autoupdate=registry
                 tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+                extra_args: --annotation org.opencontainers.image.authors=Felipe\ Torres\ Gonzalez<admin@nubecita.eu> --annotation org.opencontainers.image.licenses=MPL-2.0 --annotation org.opencontainers.image.description=IbexShortBot\ Backend\ Microservice
                 push: true
                 security: |
                   --security-opt=seccomp=unconfined
