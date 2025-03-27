@@ -59,6 +59,7 @@ pub struct ApplicationSettings {
     pub http_server_host: String,
     pub http_server_port: u16,
     pub webhook_url: String,
+    pub webhook_path: String,
     pub webhook_token: SecretString,
 }
 

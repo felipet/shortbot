@@ -27,6 +27,7 @@ use teloxide::{
     dispatching::dialogue::InMemStorage, payloads::SetMyCommandsSetters, prelude::*,
     update_listeners::webhooks, utils::command::BotCommands,
 };
+use tokio::net::TcpListener;
 use tracing::{debug, info};
 
 #[tokio::main]
@@ -42,27 +43,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let short_cache = shortbot::ShortCache::connect_backend(&settings.database).await?;
 
     // Build an Axum HTTP server.
-    //TODO
+    let main_router: axum::Router<()> =
+        axum::Router::new().route("/adm", axum::routing::get(|| async { "Hello, World!" }));
 
     let http_server_address = SocketAddr::from_str(&format!(
         "{}:{}",
         &settings.application.http_server_host, settings.application.http_server_port
     ))
-    .expect("Failed to build a socket usig the configuration");
+    .expect("Failed to build a socket using the configuration");
+
+    let tcp_listener = TcpListener::bind(http_server_address)
+        .await
+        .expect("Failed to bind to the provided address");
 
     info!("Started ShortBot server");
 
     let bot = Bot::new(settings.application.api_token.expose_secret());
 
     // Build a listener based on the axum server.
-    let listener = webhooks::axum(
+    let (listener, stop_future, bot_router) = webhooks::axum_to_router(
         bot.clone(),
         webhooks::Options::new(
             http_server_address,
-            settings.application.webhook_url.parse().unwrap(),
+            format!(
+                "{}{}",
+                settings.application.webhook_url, settings.application.webhook_path
+            )
+            .parse()
+            .unwrap(),
         ),
     )
     .await?;
+
+    // Launch the Axum server.
+    let app = axum::Router::new()
+        .nest_service("/", bot_router)
+        .nest("/bot", main_router);
+
+    tokio::task::spawn(async move {
+        axum::serve(tcp_listener, app)
+            .with_graceful_shutdown(stop_future)
+            .await
+    });
+    debug!("Axum server started");
 
     // Configure the supported languages of the Bot.
     debug!("Setting up commands of the bot");

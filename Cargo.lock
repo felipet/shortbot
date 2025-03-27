@@ -2617,6 +2617,7 @@ dependencies = [
 name = "shortbot"
 version = "0.2.0"
 dependencies = [
+ "axum",
  "chrono",
  "config",
  "data_harvest",
