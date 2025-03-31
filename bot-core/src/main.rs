@@ -14,14 +14,14 @@
 
 //! Main file of the Shortbot
 
-use secrecy::ExposeSecret;
-use shortbot::{
+use bot_core::{CommandEng, CommandSpa};
+use bot_core::{
+    State,
     configuration::Settings,
     handlers,
     telemetry::{get_subscriber, init_subscriber},
-    State,
 };
-use shortbot::{CommandEng, CommandSpa};
+use secrecy::ExposeSecret;
 use std::{net::SocketAddr, str::FromStr, sync::Arc};
 use teloxide::{
     dispatching::dialogue::InMemStorage, payloads::SetMyCommandsSetters, prelude::*,
@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_subscriber(subscriber);
 
     // Initialize the short cache.
-    let short_cache = shortbot::ShortCache::connect_backend(&settings.database).await?;
+    let short_cache = bot_core::ShortCache::connect_backend(&settings.database).await?;
 
     // Build an Axum HTTP server.
     let main_router: axum::Router<()> =

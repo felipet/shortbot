@@ -21,9 +21,9 @@
 //! All valid combinations of Messages and States shall be contemplated in the implementation
 //! of this handler.
 
-use crate::{endpoints::*, CommandEng, CommandSpa, State};
+use crate::{CommandEng, CommandSpa, State, endpoints::*};
 use teloxide::{
-    dispatching::{dialogue, dialogue::InMemStorage, UpdateHandler},
+    dispatching::{UpdateHandler, dialogue, dialogue::InMemStorage},
     prelude::*,
 };
 

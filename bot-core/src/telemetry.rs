@@ -13,8 +13,8 @@
 //    limitations under the License.
 
 use tracing::{
-    subscriber::{set_global_default, Subscriber},
     Level,
+    subscriber::{Subscriber, set_global_default},
 };
 use tracing_subscriber::FmtSubscriber;
 

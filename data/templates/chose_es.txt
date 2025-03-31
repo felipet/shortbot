@@ -1,3 +1,0 @@
-Has seleccionado la empresa del Ibex35: <b>{}</b>
-
-🔎 Comprobando si existe alguna posición en corto...

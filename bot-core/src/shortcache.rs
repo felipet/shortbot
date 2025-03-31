@@ -18,7 +18,7 @@ use crate::{configuration::DatabaseSettings, errors::DbError};
 use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone, Utc};
 use data_harvest::domain::{AliveShortPositions, ShortPosition};
 use finance_ibex::IbexCompany;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use tracing::{debug, error, instrument, trace};
 use uuid::Uuid;
 
@@ -127,7 +127,7 @@ impl TryFrom<&IbexCompanyBd> for IbexCompany {
                 return Err(DbError::MissingStockInfo(format!(
                     "Missing name: {:?}",
                     value
-                )))
+                )));
             }
         };
         let fname = value.full_name.as_deref();
@@ -138,7 +138,7 @@ impl TryFrom<&IbexCompanyBd> for IbexCompany {
                 return Err(DbError::MissingStockInfo(format!(
                     "Missing ticker: {:?}",
                     value
-                )))
+                )));
             }
         };
 
@@ -148,7 +148,7 @@ impl TryFrom<&IbexCompanyBd> for IbexCompany {
                 return Err(DbError::MissingStockInfo(format!(
                     "Missing ISIN: {:?}",
                     value
-                )))
+                )));
             }
         };
 
