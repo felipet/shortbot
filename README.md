@@ -27,6 +27,26 @@ really annoying checking positions.
 To start using this bot, just search @IbexShortBot in Telegram, or open this
 [link](https://t.me/ibexshortbot).
 
+# Development
+
+Before making any commit to the repository, [pre-commit] shall be installed to check
+that everything within the commit complies with the style rules of the repository.
+
+Then, a ***git hook*** shall be installed. The hooks for this repository are located
+at `.githooks`. These can be copied to `.git/hooks/` or used straight from such
+location when telling ***git*** where to look for hooks:
+
+```bash
+$ git config core.hooksPath .githooks
+```
+
+A pre-push hook is also added to avoid pushing code that doesn't pass tests. If you
+really aim to push code that doesn't pass tests for some reason, the following command
+can be used:
+
+```bash
+$ git push --no-verify <remote> <branch>
+```
 
 [ibex35]: https://www.bolsasymercados.es/bme-exchange/es/Mercados-y-Cotizaciones/Acciones/Mercado-Continuo/Precios/ibex-35-ES0SI0000005
 [cnmv]: https://www.cnmv.es/portal/home.aspx

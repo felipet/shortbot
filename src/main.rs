@@ -22,11 +22,12 @@ use shortbot::{
     State,
 };
 use shortbot::{CommandEng, CommandSpa};
-use std::sync::Arc;
-use teloxide::dispatching::dialogue::InMemStorage;
-use teloxide::payloads::SetMyCommandsSetters;
-use teloxide::prelude::*;
-use teloxide::utils::command::BotCommands;
+use std::{net::SocketAddr, str::FromStr, sync::Arc};
+use teloxide::{
+    dispatching::dialogue::InMemStorage, payloads::SetMyCommandsSetters, prelude::*,
+    update_listeners::webhooks, utils::command::BotCommands,
+};
+use tokio::net::TcpListener;
 use tracing::{debug, info};
 
 #[tokio::main]
@@ -41,9 +42,50 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the short cache.
     let short_cache = shortbot::ShortCache::connect_backend(&settings.database).await?;
 
+    // Build an Axum HTTP server.
+    let main_router: axum::Router<()> =
+        axum::Router::new().route("/adm", axum::routing::get(|| async { "Hello, World!" }));
+
+    let http_server_address = SocketAddr::from_str(&format!(
+        "{}:{}",
+        &settings.application.http_server_host, settings.application.http_server_port
+    ))
+    .expect("Failed to build a socket using the configuration");
+
+    let tcp_listener = TcpListener::bind(http_server_address)
+        .await
+        .expect("Failed to bind to the provided address");
+
     info!("Started ShortBot server");
 
     let bot = Bot::new(settings.application.api_token.expose_secret());
+
+    // Build a listener based on the axum server.
+    let (listener, stop_future, bot_router) = webhooks::axum_to_router(
+        bot.clone(),
+        webhooks::Options::new(
+            http_server_address,
+            format!(
+                "{}{}",
+                settings.application.webhook_url, settings.application.webhook_path
+            )
+            .parse()
+            .unwrap(),
+        ),
+    )
+    .await?;
+
+    // Launch the Axum server.
+    let app = axum::Router::new()
+        .nest_service("/", bot_router)
+        .nest("/bot", main_router);
+
+    tokio::task::spawn(async move {
+        axum::serve(tcp_listener, app)
+            .with_graceful_shutdown(stop_future)
+            .await
+    });
+    debug!("Axum server started");
 
     // Configure the supported languages of the Bot.
     debug!("Setting up commands of the bot");
@@ -63,7 +105,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ])
         .enable_ctrlc_handler()
         .build()
-        .dispatch()
+        .dispatch_with_listener(
+            listener,
+            LoggingErrorHandler::with_custom_text("Teloxide-Log"),
+        )
         .await;
 
     info!("Gracefully closed ShortBot server");

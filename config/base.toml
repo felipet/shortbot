@@ -12,6 +12,11 @@ data_path = "./data"
 [application]
 # Telegram API Token - override me!
 api_token = "my_api_token"
+http_server_host = "127.0.0.1"
+http_server_port = "9601"
+webhook_url = "base url"
+webhook_path = "path"
+webhook_token = "token"
 
 [database]
 questdb_host = "127.0.0.1"

@@ -1,4 +1,4 @@
-// Copyright 2025 Felipe Torres González
+// Copyright 2024-2025 Felipe Torres González
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -56,6 +56,11 @@ pub struct Settings {
 #[allow(unused)]
 pub struct ApplicationSettings {
     pub api_token: SecretString,
+    pub http_server_host: String,
+    pub http_server_port: u16,
+    pub webhook_url: String,
+    pub webhook_path: String,
+    pub webhook_token: SecretString,
 }
 
 impl Settings {
