@@ -12,6 +12,11 @@ jobs:
         steps:
             - name: Checkout
               uses: actions/checkout@v4
+            - name: Write release version
+              run: |
+                VERSION=${GITHUB_REF_NAME#v}
+                echo Version: $VERSION
+                echo "VERSION=$VERSION" >> $GITHUB_ENV
             - name: Use Podman Build and Push Action
               uses: Frozen-Tapestry/container-action@v1
               with:
@@ -20,7 +25,7 @@ jobs:
                 login_password: ${{ secrets.REGISTRY_TOKEN }}
                 dockerfile: ./Containerfile
                 labels: io.containers.autoupdate=registry
-                tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }} ghcr.io/${{ github.repository }}:latest
+                tags: ghcr.io/${{ github.repository }}:${{ env.VERSION }} ghcr.io/${{ github.repository }}:latest
                 extra_args: --annotation org.opencontainers.image.authors=Felipe\ Torres\ Gonzalez<admin@nubecita.eu> --annotation org.opencontainers.image.licenses=MPL-2.0 --annotation org.opencontainers.image.description=IbexShortBot\ Backend\ Microservice
                 push: true
                 security: |
