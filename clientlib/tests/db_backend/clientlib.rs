@@ -13,9 +13,42 @@
 //    limitations under the License.
 
 use crate::helpers::test_setup;
+use clientlib::{BotAccess, get_access_level, modify_access_level};
+use random::Source;
+use sqlx::Executor;
 
 #[tokio::test]
-async fn test1() {
+async fn test_client_access() {
     let app = test_setup().await;
-    assert!(app.pool.is_closed() == false);
+    let mut source = random::default(42);
+    let client_id = source.read::<i64>();
+    let access_level = BotAccess::Free;
+
+    // Seed a client with free access
+    app.pool
+        .execute(sqlx::query!(
+            r#"INSERT INTO BotClient (id,registered,access,subscriptions,created_at)
+            VALUES (?, 0, ?, NULL, CURRENT_TIMESTAMP())"#,
+            client_id,
+            access_level.to_string(),
+        ))
+        .await
+        .expect("Failed to seed the DB with a client.");
+
+    let access_test = get_access_level(&app.pool, client_id)
+        .await
+        .expect("Error trying to get access level");
+    assert_eq!(access_test, access_level, "Access level should be free");
+
+    let access_level = BotAccess::Limited;
+    assert!(
+        modify_access_level(&app.pool, client_id, access_level.clone())
+            .await
+            .is_ok()
+    );
+
+    let access_test = get_access_level(&app.pool, client_id)
+        .await
+        .expect("Error trying to get access level");
+    assert_eq!(access_test, access_level, "Access level should be limited");
 }
