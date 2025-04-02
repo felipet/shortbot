@@ -66,8 +66,10 @@ pub struct ApplicationSettings {
 impl Settings {
     pub fn new() -> Result<Self, ConfigError> {
         // Build the full path of the configuration directory.
-        let base_path =
+        let mut base_path =
             std::env::current_dir().expect("Failed to determine the current directory.");
+        // Needed due to the workspace organisation of the project.
+        base_path.push("../");
         let cfg_dir = base_path.join(CONF_DIR);
 
         let settings = Config::builder()
@@ -87,6 +89,12 @@ pub struct DatabaseSettings {
     pub questdb_port: u16,
     pub questdb_user: String,
     pub questdb_password: SecretString,
+    pub mariadb_host: String,
+    pub mariadb_port: u16,
+    pub mariadb_user: String,
+    pub mariadb_password: SecretString,
+    pub mariadb_dbname: String,
+    pub mariadb_ssl_mode: Option<bool>,
 }
 
 impl DatabaseSettings {
