@@ -42,7 +42,7 @@
 //! After that, the whole workspace can be built using `cargo build`, but we need to run SQLx in offline mode:
 //! `export SQLX_OFFLINE=true`.
 
-use sqlx::MySqlPool;
+use sqlx::{Executor, MySqlPool};
 
 pub mod configuration;
 
@@ -51,6 +51,7 @@ pub mod configuration;
 /// # Description
 ///
 /// The access level is used to determine the level of access to the bot's features for each client.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BotAccess {
     Free,
     Limited,
@@ -82,80 +83,98 @@ impl std::fmt::Display for BotAccess {
 }
 
 pub async fn register_client(
-    pool: MySqlPool,
+    pool: &MySqlPool,
     client_id: i64,
     auto: bool,
 ) -> Result<(), sqlx::Error> {
     sqlx::query!(
-        "INSERT INTO BotClient VALUES (?, ?, ?, NULL, CURRENT_TIMESTAMP)",
+        "INSERT INTO BotClient VALUES (?, ?, ?, NULL, CURRENT_TIMESTAMP(), NULL)",
         client_id,
         auto,
         BotAccess::Free.to_string(),
     )
-    .execute(&pool)
+    .execute(pool)
     .await?;
 
     Ok(())
 }
 
-pub async fn update_access(pool: MySqlPool, client_id: i64) -> Result<(), sqlx::Error> {
+pub async fn update_access(pool: &MySqlPool, client_id: i64) -> Result<(), sqlx::Error> {
     sqlx::query!(
         "UPDATE BotClient SET access = CURRENT_TIMESTAMP WHERE id = ?",
         client_id
     )
-    .execute(&pool)
+    .execute(pool)
     .await?;
 
     Ok(())
 }
 
-pub async fn get_access_level(pool: MySqlPool, client_id: i64) -> Result<BotAccess, sqlx::Error> {
+pub async fn get_access_level(pool: &MySqlPool, client_id: i64) -> Result<BotAccess, sqlx::Error> {
     let row = sqlx::query!("SELECT access FROM BotClient WHERE id = ?", client_id)
-        .fetch_one(&pool)
+        .fetch_optional(pool)
         .await?;
 
-    match row.access {
-        Some(access) => Ok(BotAccess::from_str(&access)),
+    match row {
+        Some(row) => Ok(BotAccess::from_str(&row.access)),
         None => Ok(BotAccess::Free),
     }
 }
 
-pub async fn mark_as_registered(pool: MySqlPool, client_id: i64) -> Result<(), sqlx::Error> {
+pub async fn modify_access_level(
+    pool: &MySqlPool,
+    client_id: i64,
+    access_level: BotAccess,
+) -> Result<(), sqlx::Error> {
+    pool.execute(sqlx::query!(
+        r#"UPDATE BotClient SET access = ? WHERE id = ?"#,
+        access_level.to_string(),
+        client_id
+    ))
+    .await?;
+
+    Ok(())
+}
+
+pub async fn mark_as_registered(pool: &MySqlPool, client_id: i64) -> Result<(), sqlx::Error> {
     sqlx::query!(
         "UPDATE BotClient SET registered = 1 WHERE id = ?",
         client_id
     )
-    .execute(&pool)
+    .execute(pool)
     .await?;
 
     Ok(())
 }
 
-pub async fn mark_as_unregistered(pool: MySqlPool, client_id: i64) -> Result<(), sqlx::Error> {
+pub async fn mark_as_unregistered(pool: &MySqlPool, client_id: i64) -> Result<(), sqlx::Error> {
     sqlx::query!(
         "UPDATE BotClient SET registered = 0 WHERE id = ?",
         client_id
     )
-    .execute(&pool)
+    .execute(pool)
     .await?;
 
     Ok(())
 }
 
-pub async fn is_registered(pool: MySqlPool, client_id: i64) -> Result<bool, sqlx::Error> {
+pub async fn is_registered(pool: &MySqlPool, client_id: i64) -> Result<bool, sqlx::Error> {
     let row = sqlx::query!("SELECT registered FROM BotClient WHERE id = ?", client_id)
-        .fetch_one(&pool)
+        .fetch_one(pool)
         .await?;
 
     Ok(row.registered != 0)
 }
 
-pub async fn get_subcriptions(pool: MySqlPool, client_id: i64) -> Result<Vec<String>, sqlx::Error> {
+pub async fn get_subcriptions(
+    pool: &MySqlPool,
+    client_id: i64,
+) -> Result<Vec<String>, sqlx::Error> {
     let row = sqlx::query!(
         "SELECT subscriptions FROM BotClient WHERE id = ?",
         client_id
     )
-    .fetch_one(&pool)
+    .fetch_one(pool)
     .await?;
 
     match row.subscriptions {
@@ -165,11 +184,11 @@ pub async fn get_subcriptions(pool: MySqlPool, client_id: i64) -> Result<Vec<Str
 }
 
 pub async fn add_subscription(
-    pool: MySqlPool,
+    pool: &MySqlPool,
     client_id: i64,
     ticker: &str,
 ) -> Result<(), sqlx::Error> {
-    let mut tickers = get_subcriptions(pool.clone(), client_id).await?;
+    let mut tickers = get_subcriptions(&pool, client_id).await?;
     if !tickers.contains(&ticker.to_string()) {
         tickers.push(ticker.to_string());
     }
@@ -179,18 +198,18 @@ pub async fn add_subscription(
         format_tickers(&tickers),
         client_id
     )
-    .execute(&pool)
+    .execute(pool)
     .await?;
 
     Ok(())
 }
 
 pub async fn remove_subscription(
-    pool: MySqlPool,
+    pool: &MySqlPool,
     client_id: i64,
     ticker: &str,
 ) -> Result<(), sqlx::Error> {
-    let mut tickers = get_subcriptions(pool.clone(), client_id).await?;
+    let mut tickers = get_subcriptions(&pool, client_id).await?;
     tickers.retain(|x| x != ticker);
 
     sqlx::query!(
@@ -198,7 +217,7 @@ pub async fn remove_subscription(
         format_tickers(&tickers),
         client_id
     )
-    .execute(&pool)
+    .execute(pool)
     .await?;
 
     Ok(())

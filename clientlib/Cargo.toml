@@ -16,6 +16,7 @@ uuid = { version = "1.13.1", features = ["v4"] }
 
 [dev-dependencies]
 tokio = { version = "1.8", features = ["rt", "macros"] }
+random = "0.14.0"
 
 [lints]
 workspace = true
