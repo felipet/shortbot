@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "INSERT INTO BotClient VALUES (?, ?, ?, NULL, CURRENT_TIMESTAMP)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "179ef1ae24667a7958c0599ca1d99404dedd47adad61346725393969d692d8ec"
+}

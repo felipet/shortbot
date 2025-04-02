@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bot-core"]
+members = ["bot-core", "clientlib"]
 
 [workspace.package]
 edition = "2024"
