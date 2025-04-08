@@ -84,6 +84,7 @@ jobs:
             --no-default-features
             --locked
       - name: Migrate database
-        run: sqlx migrate run
+        run: |
+          DATABASE_URL="mariadb://root:password@localhost:3306/shortbot" sqlx migrate run --source clientlib/migrations
       - name: Tests
-        run: cargo test
+        run: DATABASE_URL="mariadb://root:password@localhost:3306/shortbot" cargo test --package clientlib
