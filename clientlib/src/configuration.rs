@@ -28,7 +28,7 @@ pub fn build_db_conn_without_db(config: &DatabaseSettings) -> MySqlConnectOption
         .host(&config.mariadb_host)
         .port(config.mariadb_port)
         .username(&config.mariadb_user)
-        .password(&config.mariadb_password.expose_secret())
+        .password(config.mariadb_password.expose_secret())
         .charset("utf8mb4")
         .ssl_mode(if config.mariadb_ssl_mode.unwrap_or_default() {
             MySqlSslMode::Required

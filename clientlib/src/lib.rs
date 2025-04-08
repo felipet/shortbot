@@ -33,7 +33,7 @@
 //! For each crate of the workspace:
 //!
 //! 1. Set up the environment variables for connecting to the DB backend, either via `export DATABASE_URL` or using
-//!   `.env` files.
+//!    `.env` files.
 //! 2. Build the crate using `cargo build`.
 //! 3. Run `cargo sqlx prepare` to generate the SQLx prepared queries.
 //!
@@ -43,6 +43,7 @@
 //! `export SQLX_OFFLINE=true`.
 
 use sqlx::{Executor, MySqlPool};
+use std::str::FromStr;
 
 pub mod configuration;
 
@@ -59,14 +60,15 @@ pub enum BotAccess {
     Admin,
 }
 
-impl BotAccess {
-    pub fn from_str(s: &str) -> Self {
+impl FromStr for BotAccess {
+    type Err = &'static str;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "free" => BotAccess::Free,
-            "limited" => BotAccess::Limited,
-            "unlimited" => BotAccess::Unlimited,
-            "admin" => BotAccess::Admin,
-            _ => BotAccess::Free,
+            "free" => Ok(BotAccess::Free),
+            "limited" => Ok(BotAccess::Limited),
+            "unlimited" => Ok(BotAccess::Unlimited),
+            "admin" => Ok(BotAccess::Admin),
+            _ => Err("Invalid BotAccess type"),
         }
     }
 }
@@ -116,7 +118,7 @@ pub async fn get_access_level(pool: &MySqlPool, client_id: i64) -> Result<BotAcc
         .await?;
 
     match row {
-        Some(row) => Ok(BotAccess::from_str(&row.access)),
+        Some(row) => Ok(BotAccess::from_str(&row.access).unwrap_or(BotAccess::Free)),
         None => Ok(BotAccess::Free),
     }
 }
@@ -188,7 +190,7 @@ pub async fn add_subscription(
     client_id: i64,
     ticker: &str,
 ) -> Result<(), sqlx::Error> {
-    let mut tickers = get_subcriptions(&pool, client_id).await?;
+    let mut tickers = get_subcriptions(pool, client_id).await?;
     if !tickers.contains(&ticker.to_string()) {
         tickers.push(ticker.to_string());
     }
@@ -209,7 +211,7 @@ pub async fn remove_subscription(
     client_id: i64,
     ticker: &str,
 ) -> Result<(), sqlx::Error> {
-    let mut tickers = get_subcriptions(&pool, client_id).await?;
+    let mut tickers = get_subcriptions(pool, client_id).await?;
     tickers.retain(|x| x != ticker);
 
     sqlx::query!(
