@@ -15,6 +15,7 @@ on:
       - 'src/**'
       - 'Dockerfile'
       - 'Cargo.**'
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
