@@ -19,6 +19,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  SQLX_OFFLINE: true
+  SQLX_TEST_OFFLINE: true
 
 jobs:
   fmt:
