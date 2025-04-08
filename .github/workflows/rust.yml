@@ -19,8 +19,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  SQLX_OFFLINE: true
-  SQLX_TEST_OFFLINE: true
+  SQLX_FEATURES: "mysql"
+  SQLX_VERSION: "0.8.3"
 
 jobs:
   fmt:
@@ -46,7 +46,7 @@ jobs:
         with:
           components: rustfmt clippy
       - name: Build
-        run: cargo check --future-incompat-report
+        run: SQLX_OFFLINE=true cargo check --future-incompat-report
 
   clippy:
     name: Clippy
@@ -59,7 +59,7 @@ jobs:
         with:
           components: rustfmt clippy
       - name: Linting
-        run: cargo clippy --no-deps -- -D warnings
+        run: SQLX_OFFLINE=true cargo clippy --no-deps -- -D warnings
 
   test:
     name: Test
@@ -70,5 +70,20 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - uses: getong/mariadb-action@v1.11
+        with:
+           mysql root password: "password"
+           mysql database: "shortbot"
+           mysql user: "root"
+           mysql password: "password"
+      - name: Install SQLx-cli
+        run:
+            cargo install sqlx-cli
+            --version=${{ env.SQLX_VERSION }}
+            --features ${{ env.SQLX_FEATURES }}
+            --no-default-features
+            --locked
+      - name: Migrate database
+        run: sqlx migrate run
       - name: Tests
         run: cargo test
