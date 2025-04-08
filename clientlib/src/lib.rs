@@ -103,7 +103,7 @@ pub async fn register_client(
 
 pub async fn update_access(pool: &MySqlPool, client_id: i64) -> Result<(), sqlx::Error> {
     sqlx::query!(
-        "UPDATE BotClient SET access = CURRENT_TIMESTAMP WHERE id = ?",
+        "UPDATE BotClient SET last_access=CURRENT_TIMESTAMP() WHERE id = ?",
         client_id
     )
     .execute(pool)
