@@ -1,0 +1,24 @@
+{
+  "db_name": "MySQL",
+  "query": "SELECT access FROM BotClient WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "access",
+        "type_info": {
+          "type": "String",
+          "flags": "NOT_NULL | ENUM | NO_DEFAULT_VALUE",
+          "max_size": 36
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6b5f9cd1c4d6afb6918c95872f0339c319b6a59ca6fbf13062380f70120c1479"
+}

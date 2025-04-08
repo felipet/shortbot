@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "UPDATE BotClient SET subscriptions = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "d5c5df166d4e9e7efffadecc1f13acc66507319ebffa8146693e950709408e92"
+}
