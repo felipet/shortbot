@@ -76,6 +76,10 @@ jobs:
            mysql database: "shortbot"
            mysql user: "root"
            mysql password: "password"
+      - name: Start QuestDb
+        uses: QuadStingray/questdb-github-action@v1.0.0
+        with:
+          questdb-port-postgresql: 8812
       - name: Install SQLx-cli
         run:
             cargo install sqlx-cli
