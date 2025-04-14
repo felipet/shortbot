@@ -87,8 +87,26 @@ jobs:
             --features ${{ env.SQLX_FEATURES }}
             --no-default-features
             --locked
-      - name: Migrate database
+      - name: Migrate database MariaDB
         run: |
           DATABASE_URL="mariadb://root:password@localhost:3306/shortbot" sqlx migrate run --source clientlib/migrations
+      - name: DB migration QuestDB I
+        run: |
+          curl -G \
+          -u "user:password" \
+          --data-urlencode "query=CREATE TABLE 'alive_position' (id UUID);" \
+          http://localhost:9000/exec
+      - name: DB migration QuestDB II
+        run: |
+          curl -G \
+          -u "user:password" \
+          --data-urlencode "query=CREATE TABLE 'ibex35_listing' (ticker SYMBOL capacity 256 CACHE, name VARCHAR,  full_name VARCHAR, isin VARCHAR, extra_id VARCHAR);" \
+          http://localhost:9000/exec
+      - name: DB migration QuestDB III
+        run: |
+          curl -G \
+          -u "user:password" \
+          --data-urlencode "query=CREATE TABLE 'ibex35_short_historic' (id UUID, ticker SYMBOL capacity 256 CACHE, owner VARCHAR, weight FLOAT, open_date TIMESTAMP) timestamp (open_date) PARTITION BY DAY WAL;" \
+          http://localhost:9000/exec
       - name: Tests
         run: DATABASE_URL="mariadb://root:password@localhost:3306/shortbot" cargo test --package clientlib
