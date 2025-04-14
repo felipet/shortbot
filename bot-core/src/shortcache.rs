@@ -43,7 +43,7 @@ impl ShortCache {
     }
 
     pub async fn ibex35_listing(&self) -> Result<Vec<IbexCompany>, DbError> {
-        let companies = sqlx::query_as!(IbexCompanyBd, "SELECT * FROM ibex35_listing",)
+        let companies: Vec<IbexCompanyBd> = sqlx::query_as("SELECT * FROM ibex35_listing")
             .fetch_all(&self.db_pool)
             .await
             .map_err(|e| DbError::Unknown(e.to_string()))?;
@@ -60,23 +60,17 @@ impl ShortCache {
 
     #[instrument(name = "Retrive short positions", skip(self))]
     pub async fn short_position(&self, ticker: &str) -> Result<AliveShortPositions, DbError> {
-        let positions = sqlx::query_as!(
-            ShortPositionBd,
+        let positions: Vec<ShortPositionBd> = sqlx::query_as(
             r#"
             SELECT alive_positions.id, owner, weight, open_date, ticker
             FROM alive_positions INNER JOIN ibex35_short_historic on alive_positions.id = ibex35_short_historic.id
             WHERE ibex35_short_historic.ticker = $1
-            "#,
-            ticker,
+            "#
         )
+        .bind(ticker)
         .fetch_all(&self.db_pool)
         .await
         .map_err(|e| DbError::Unknown(e.to_string()))?;
-
-        // let positions = match positions.iter().map(ShortPosition::try_from).collect() {
-        //     Ok(v) => v,
-        //     Err(e) => Err(e),
-        // };
 
         let mut shorts = Vec::new();
 
