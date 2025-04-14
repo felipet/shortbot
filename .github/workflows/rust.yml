@@ -109,4 +109,4 @@ jobs:
           --data-urlencode "query=CREATE TABLE 'ibex35_short_historic' (id UUID, ticker SYMBOL capacity 256 CACHE, owner VARCHAR, weight FLOAT, open_date TIMESTAMP) timestamp (open_date) PARTITION BY DAY WAL;" \
           http://localhost:9000/exec
       - name: Tests
-        run: DATABASE_URL="mariadb://root:password@localhost:3306/shortbot" cargo test --package clientlib
+        run: cargo test --package clientlib
