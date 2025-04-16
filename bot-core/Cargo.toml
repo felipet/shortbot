@@ -12,7 +12,6 @@ secrecy = { version = "0.10.3", features = ["serde"] }
 serde = { version = "1.0.217", features = ["serde_derive"] }
 teloxide = { version = "0.13.0", features = ["macros", "ctrlc_handler", "webhooks-axum"] }
 tokio = {version = "1.8", features = ["rt-multi-thread", "macros"]}
-serde_derive = "1.0"
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = "0.3.0"
 pretty_assertions = "1.4.1"
@@ -28,6 +27,8 @@ data_harvest = "0.2.1"
 uuid = { version = "1.13.1", features = ["v4"] }
 chrono = { version = "0.4.38", features = ["alloc", "std", "clock"] }
 axum = "0.7.9"
+clientlib = { path = "../clientlib" }
+configuration = { path = "../configuration" }
 
 [lints]
 workspace = true

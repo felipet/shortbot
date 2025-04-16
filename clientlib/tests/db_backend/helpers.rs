@@ -12,8 +12,7 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-use bot_core::configuration::{DatabaseSettings, Settings};
-use clientlib::configuration::{build_db_conn_with_db, build_db_conn_without_db};
+use configuration::{DatabaseSettings, Settings, build_db_conn_with_db, build_db_conn_without_db};
 use sqlx::{Connection, Executor, MySqlConnection, MySqlPool};
 use uuid::Uuid;
 

@@ -27,6 +27,7 @@
 use config::{Config, ConfigError, Environment, File};
 use secrecy::{ExposeSecret, SecretString};
 use serde_derive::Deserialize;
+use sqlx::mysql::{MySqlConnectOptions, MySqlSslMode};
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 
 /// Name of the directory in which configuration files will be stored.
@@ -106,4 +107,22 @@ impl DatabaseSettings {
             .port(self.questdb_port)
             .ssl_mode(PgSslMode::Prefer)
     }
+}
+
+pub fn build_db_conn_without_db(config: &DatabaseSettings) -> MySqlConnectOptions {
+    MySqlConnectOptions::new()
+        .host(&config.mariadb_host)
+        .port(config.mariadb_port)
+        .username(&config.mariadb_user)
+        .password(config.mariadb_password.expose_secret())
+        .charset("utf8mb4")
+        .ssl_mode(if config.mariadb_ssl_mode.unwrap_or_default() {
+            MySqlSslMode::Required
+        } else {
+            MySqlSslMode::Preferred
+        })
+}
+
+pub fn build_db_conn_with_db(config: &DatabaseSettings) -> MySqlConnectOptions {
+    build_db_conn_without_db(config).database(&config.mariadb_dbname)
 }

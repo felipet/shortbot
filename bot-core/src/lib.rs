@@ -19,7 +19,6 @@ use teloxide::{
     utils::command::BotCommands,
 };
 
-pub mod configuration;
 pub mod errors;
 pub mod shortcache;
 pub mod telemetry;

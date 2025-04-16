@@ -16,11 +16,10 @@
 
 use bot_core::{CommandEng, CommandSpa};
 use bot_core::{
-    State,
-    configuration::Settings,
-    handlers,
+    State, handlers,
     telemetry::{get_subscriber, init_subscriber},
 };
+use configuration::Settings;
 use secrecy::ExposeSecret;
 use std::{net::SocketAddr, str::FromStr, sync::Arc};
 use teloxide::{
@@ -41,6 +40,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize the short cache.
     let short_cache = bot_core::ShortCache::connect_backend(&settings.database).await?;
+
+    // Initialize the database connection for handling clients.
+    let db_client = configuration::build_db_conn_with_db(&settings.database);
 
     // Build an Axum HTTP server.
     let main_router: axum::Router<()> =

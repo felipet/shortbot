@@ -14,8 +14,9 @@
 
 //! Module with the logic for the short positions cache.
 
-use crate::{configuration::DatabaseSettings, errors::DbError};
+use crate::errors::DbError;
 use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone, Utc};
+use configuration::DatabaseSettings;
 use data_harvest::domain::{AliveShortPositions, ShortPosition};
 use finance_ibex::IbexCompany;
 use sqlx::{PgPool, postgres::PgPoolOptions};

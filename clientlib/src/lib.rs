@@ -45,8 +45,6 @@
 use sqlx::{Executor, MySqlPool};
 use std::str::FromStr;
 
-pub mod configuration;
-
 /// This enum represents the access level of a bot client.
 ///
 /// # Description

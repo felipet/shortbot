@@ -230,7 +230,9 @@ version = "0.3.0"
 dependencies = [
  "axum",
  "chrono",
+ "clientlib",
  "config",
+ "configuration",
  "data_harvest",
  "finance_api",
  "finance_ibex",
@@ -240,7 +242,6 @@ dependencies = [
  "scraper 0.22.0",
  "secrecy",
  "serde",
- "serde_derive",
  "sqlx",
  "teloxide",
  "thiserror 2.0.12",
@@ -302,7 +303,7 @@ dependencies = [
 name = "clientlib"
 version = "0.3.0"
 dependencies = [
- "bot-core",
+ "configuration",
  "random",
  "secrecy",
  "sqlx",
@@ -337,6 +338,17 @@ dependencies = [
  "toml",
  "winnow",
  "yaml-rust2",
+]
+
+[[package]]
+name = "configuration"
+version = "0.3.0"
+dependencies = [
+ "config",
+ "secrecy",
+ "serde",
+ "serde_derive",
+ "sqlx",
 ]
 
 [[package]]

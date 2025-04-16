@@ -10,12 +10,12 @@ repository.workspace = true
 [dependencies]
 tracing = { version = "0.1", features = ["log"] }
 sqlx = { version = "0.8", features = [ "runtime-tokio", "mysql", "macros", "chrono" ] }
-bot-core = { path = "../bot-core" }
 secrecy = { version = "0.10.3", features = ["serde"] }
 uuid = { version = "1.13.1", features = ["v4"] }
 
 [dev-dependencies]
 tokio = { version = "1.8", features = ["rt", "macros"] }
+configuration = { path = "../configuration" }
 random = "0.14.0"
 
 [lints]
