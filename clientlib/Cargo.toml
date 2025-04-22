@@ -12,9 +12,11 @@ tracing = { version = "0.1", features = ["log"] }
 sqlx = { version = "0.8", features = [ "runtime-tokio", "mysql", "macros", "chrono" ] }
 secrecy = { version = "0.10.3", features = ["serde"] }
 uuid = { version = "1.13.1", features = ["v4"] }
+tokio = {version = "1.8", features = ["rt", "macros", "sync"]}
+teloxide = { version = "0.13.0" }
+thiserror = "2.0.12"
 
 [dev-dependencies]
-tokio = { version = "1.8", features = ["rt", "macros"] }
 configuration = { path = "../configuration" }
 random = "0.14.0"
 

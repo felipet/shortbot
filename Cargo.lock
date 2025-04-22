@@ -307,6 +307,8 @@ dependencies = [
  "random",
  "secrecy",
  "sqlx",
+ "teloxide",
+ "thiserror 2.0.12",
  "tokio",
  "tracing",
  "uuid",
