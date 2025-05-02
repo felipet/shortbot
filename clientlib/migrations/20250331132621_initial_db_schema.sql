@@ -1,6 +1,6 @@
 -- Initial DB Schema for a client of the Bot.
 CREATE TABLE `BotClient` (
-  `id` bigint PRIMARY KEY,
+  `id` BIGINT UNSIGNED PRIMARY KEY,
   `registered` bool NOT NULL,
   `access` ENUM ('free', 'limited', 'unlimited', 'admin') NOT NULL,
   `subscriptions` varchar(174),
