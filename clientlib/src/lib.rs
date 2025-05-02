@@ -42,8 +42,16 @@
 //! After that, the whole workspace can be built using `cargo build`, but we need to run SQLx in offline mode:
 //! `export SQLX_OFFLINE=true`.
 
-use sqlx::{Executor, MySqlPool};
+use std::future::Future;
 use std::str::FromStr;
+use teloxide::types::UserId;
+use thiserror::Error;
+
+mod client_handler;
+mod subscriptions;
+
+pub use client_handler::ClientHandler;
+pub use subscriptions::Subscriptions;
 
 /// This enum represents the access level of a bot client.
 ///
@@ -56,6 +64,69 @@ pub enum BotAccess {
     Limited,
     Unlimited,
     Admin,
+}
+
+#[derive(Error, Debug)]
+pub enum ClientError {
+    #[error("Wrong subscription string format")]
+    WrongSubscriptionString(String),
+    #[error("Unknown error from the DB server")]
+    UnknownDbError(String),
+}
+
+impl From<sqlx::Error> for ClientError {
+    fn from(value: sqlx::Error) -> Self {
+        ClientError::UnknownDbError(value.to_string())
+    }
+}
+
+pub trait ClientDbHandler {
+    fn is_registered(
+        &self,
+        client_id: UserId,
+    ) -> impl Future<Output = Result<bool, ClientError>> + Send;
+    fn register_client(
+        &self,
+        client_id: UserId,
+        auto_register: bool,
+    ) -> impl Future<Output = Result<(), ClientError>> + Send;
+    fn access_level(
+        &self,
+        client_id: UserId,
+    ) -> impl Future<Output = Result<BotAccess, ClientError>> + Send;
+
+    fn update_access_time(
+        &self,
+        client_id: UserId,
+    ) -> impl Future<Output = Result<(), ClientError>> + Send;
+
+    fn modify_access_level(
+        &self,
+        client_id: UserId,
+        access_level: BotAccess,
+    ) -> impl Future<Output = Result<(), ClientError>> + Send;
+
+    fn mark_as_registered(
+        &self,
+        client_id: UserId,
+    ) -> impl Future<Output = Result<(), ClientError>> + Send;
+
+    fn subscriptions(
+        &self,
+        client_id: UserId,
+    ) -> impl Future<Output = Result<Subscriptions, ClientError>> + Send;
+
+    fn add_subscriptions(
+        &self,
+        subscriptions: &[&str],
+        client_id: UserId,
+    ) -> impl Future<Output = Result<Subscriptions, ClientError>> + Send;
+
+    fn remove_subscriptions(
+        &self,
+        subscriptions: &[&str],
+        client_id: UserId,
+    ) -> impl Future<Output = Result<Subscriptions, ClientError>> + Send;
 }
 
 impl FromStr for BotAccess {
@@ -80,153 +151,4 @@ impl std::fmt::Display for BotAccess {
             BotAccess::Admin => write!(f, "admin"),
         }
     }
-}
-
-pub async fn register_client(
-    pool: &MySqlPool,
-    client_id: i64,
-    auto: bool,
-) -> Result<(), sqlx::Error> {
-    sqlx::query!(
-        "INSERT INTO BotClient VALUES (?, ?, ?, NULL, CURRENT_TIMESTAMP(), NULL)",
-        client_id,
-        auto,
-        BotAccess::Free.to_string(),
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}
-
-pub async fn update_access(pool: &MySqlPool, client_id: i64) -> Result<(), sqlx::Error> {
-    sqlx::query!(
-        "UPDATE BotClient SET last_access=CURRENT_TIMESTAMP() WHERE id = ?",
-        client_id
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}
-
-pub async fn get_access_level(pool: &MySqlPool, client_id: i64) -> Result<BotAccess, sqlx::Error> {
-    let row = sqlx::query!("SELECT access FROM BotClient WHERE id = ?", client_id)
-        .fetch_optional(pool)
-        .await?;
-
-    match row {
-        Some(row) => Ok(BotAccess::from_str(&row.access).unwrap_or(BotAccess::Free)),
-        None => Ok(BotAccess::Free),
-    }
-}
-
-pub async fn modify_access_level(
-    pool: &MySqlPool,
-    client_id: i64,
-    access_level: BotAccess,
-) -> Result<(), sqlx::Error> {
-    pool.execute(sqlx::query!(
-        r#"UPDATE BotClient SET access = ? WHERE id = ?"#,
-        access_level.to_string(),
-        client_id
-    ))
-    .await?;
-
-    Ok(())
-}
-
-pub async fn mark_as_registered(pool: &MySqlPool, client_id: i64) -> Result<(), sqlx::Error> {
-    sqlx::query!(
-        "UPDATE BotClient SET registered = 1 WHERE id = ?",
-        client_id
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}
-
-pub async fn mark_as_unregistered(pool: &MySqlPool, client_id: i64) -> Result<(), sqlx::Error> {
-    sqlx::query!(
-        "UPDATE BotClient SET registered = 0 WHERE id = ?",
-        client_id
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}
-
-pub async fn is_registered(pool: &MySqlPool, client_id: i64) -> Result<bool, sqlx::Error> {
-    let row = sqlx::query!("SELECT registered FROM BotClient WHERE id = ?", client_id)
-        .fetch_one(pool)
-        .await?;
-
-    Ok(row.registered != 0)
-}
-
-pub async fn get_subcriptions(
-    pool: &MySqlPool,
-    client_id: i64,
-) -> Result<Vec<String>, sqlx::Error> {
-    let row = sqlx::query!(
-        "SELECT subscriptions FROM BotClient WHERE id = ?",
-        client_id
-    )
-    .fetch_one(pool)
-    .await?;
-
-    match row.subscriptions {
-        Some(tickers) => Ok(parse_tickers(&tickers)),
-        None => Ok(Vec::new()),
-    }
-}
-
-pub async fn add_subscription(
-    pool: &MySqlPool,
-    client_id: i64,
-    ticker: &str,
-) -> Result<(), sqlx::Error> {
-    let mut tickers = get_subcriptions(pool, client_id).await?;
-    if !tickers.contains(&ticker.to_string()) {
-        tickers.push(ticker.to_string());
-    }
-
-    sqlx::query!(
-        "UPDATE BotClient SET subscriptions = ? WHERE id = ?",
-        format_tickers(&tickers),
-        client_id
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}
-
-pub async fn remove_subscription(
-    pool: &MySqlPool,
-    client_id: i64,
-    ticker: &str,
-) -> Result<(), sqlx::Error> {
-    let mut tickers = get_subcriptions(pool, client_id).await?;
-    tickers.retain(|x| x != ticker);
-
-    sqlx::query!(
-        "UPDATE BotClient SET subscriptions = ? WHERE id = ?",
-        format_tickers(&tickers),
-        client_id
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}
-
-fn parse_tickers(tickers: &str) -> Vec<String> {
-    tickers.split(';').map(|x| x.to_string()).collect()
-}
-
-fn format_tickers(tickers: &[String]) -> String {
-    tickers.join(";")
 }
