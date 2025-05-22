@@ -80,54 +80,54 @@ impl From<sqlx::Error> for ClientError {
     }
 }
 
-pub trait ClientDbHandler {
-    fn is_registered(
-        &self,
-        client_id: UserId,
-    ) -> impl Future<Output = Result<bool, ClientError>> + Send;
-    fn register_client(
-        &self,
-        client_id: UserId,
-        auto_register: bool,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send;
-    fn access_level(
-        &self,
-        client_id: UserId,
-    ) -> impl Future<Output = Result<BotAccess, ClientError>> + Send;
+// pub trait ClientDbHandler {
+//     fn is_registered(
+//         &self,
+//         client_id: &UserId,
+//     ) -> impl Future<Output = Result<bool, ClientError>> + Send;
+//     fn register_client(
+//         &self,
+//         client_id: &UserId,
+//         auto_register: bool,
+//     ) -> impl Future<Output = Result<(), ClientError>> + Send;
+//     fn access_level(
+//         &self,
+//         client_id: &UserId,
+//     ) -> impl Future<Output = Result<BotAccess, ClientError>> + Send;
 
-    fn update_access_time(
-        &self,
-        client_id: UserId,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send;
+//     fn update_access_time(
+//         &self,
+//         client_id: &UserId,
+//     ) -> impl Future<Output = Result<(), ClientError>> + Send;
 
-    fn modify_access_level(
-        &self,
-        client_id: UserId,
-        access_level: BotAccess,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send;
+//     fn modify_access_level(
+//         &self,
+//         client_id: &UserId,
+//         access_level: BotAccess,
+//     ) -> impl Future<Output = Result<(), ClientError>> + Send;
 
-    fn mark_as_registered(
-        &self,
-        client_id: UserId,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send;
+//     fn mark_as_registered(
+//         &self,
+//         client_id: &UserId,
+//     ) -> impl Future<Output = Result<(), ClientError>> + Send;
 
-    fn subscriptions(
-        &self,
-        client_id: UserId,
-    ) -> impl Future<Output = Result<Subscriptions, ClientError>> + Send;
+//     fn subscriptions(
+//         &self,
+//         client_id: &UserId,
+//     ) -> impl Future<Output = Result<Subscriptions, ClientError>> + Send;
 
-    fn add_subscriptions(
-        &self,
-        subscriptions: &[&str],
-        client_id: UserId,
-    ) -> impl Future<Output = Result<Subscriptions, ClientError>> + Send;
+//     fn add_subscriptions(
+//         &self,
+//         subscriptions: &[&str],
+//         client_id: &UserId,
+//     ) -> impl Future<Output = Result<Subscriptions, ClientError>> + Send;
 
-    fn remove_subscriptions(
-        &self,
-        subscriptions: &[&str],
-        client_id: UserId,
-    ) -> impl Future<Output = Result<Subscriptions, ClientError>> + Send;
-}
+//     fn remove_subscriptions(
+//         &self,
+//         subscriptions: &[&str],
+//         client_id: &UserId,
+//     ) -> impl Future<Output = Result<Subscriptions, ClientError>> + Send;
+// }
 
 impl FromStr for BotAccess {
     type Err = &'static str;

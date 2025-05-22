@@ -303,6 +303,7 @@ dependencies = [
 name = "clientlib"
 version = "0.3.0"
 dependencies = [
+ "chrono",
  "configuration",
  "random",
  "secrecy",
@@ -312,6 +313,7 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+ "whirlwind",
 ]
 
 [[package]]
@@ -3901,6 +3903,16 @@ checksum = "33b6dd2ef9186f1f2072e409e99cd22a975331a6b3591b12c764e0e55c60d5d2"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "whirlwind"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19bdd6495360c0280cb4910c4dc98472cf2a8e3a9fe0f1b55290956fa312dc07"
+dependencies = [
+ "crossbeam-utils",
+ "hashbrown 0.15.2",
 ]
 
 [[package]]

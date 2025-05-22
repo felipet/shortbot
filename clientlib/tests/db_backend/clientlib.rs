@@ -13,7 +13,7 @@
 //    limitations under the License.
 
 use crate::helpers::test_setup;
-use clientlib::{BotAccess, ClientDbHandler, ClientHandler};
+use clientlib::{BotAccess, ClientHandler};
 use random::Source;
 use sqlx::Executor;
 use std::str::FromStr;
@@ -28,7 +28,7 @@ async fn client_access_level() {
         0: source.read::<u64>(),
     };
     let access_level = BotAccess::Free;
-    let handler = ClientHandler::new(app.pool.clone());
+    let handler = ClientHandler::new(app.pool.clone(), 4, chrono::TimeDelta::days(1));
 
     // Seed a client with free access
     app.pool
@@ -42,7 +42,7 @@ async fn client_access_level() {
         .expect("Failed to seed the DB with a client.");
 
     let access_test = handler
-        .access_level(client_id)
+        .db_access_level(&client_id)
         .await
         .expect("Error trying to get access level");
     assert_eq!(access_test, access_level, "Access level should be free");
@@ -50,13 +50,13 @@ async fn client_access_level() {
     let access_level = BotAccess::Limited;
     assert!(
         handler
-            .modify_access_level(client_id, access_level.clone())
+            .db_modify_access_level(&client_id, access_level.clone())
             .await
             .is_ok()
     );
 
     let access_test = handler
-        .access_level(client_id)
+        .db_access_level(&client_id)
         .await
         .expect("Error trying to get access level");
     assert_eq!(access_test, access_level, "Access level should be limited");
@@ -71,7 +71,7 @@ async fn access_update() {
         0: source.read::<u64>(),
     };
     let access_level = BotAccess::Free;
-    let handler = ClientHandler::new(app.pool.clone());
+    let handler = ClientHandler::new(app.pool.clone(), 4, chrono::TimeDelta::days(1));
 
     // Seed a client
     app.pool
@@ -95,7 +95,7 @@ async fn access_update() {
 
     assert!(access_time.last_access.is_none());
 
-    assert!(handler.update_access_time(client_id).await.is_ok());
+    assert!(handler.db_update_access_time(&client_id).await.is_ok());
 
     let access_time_t1 = sqlx::query!(
         "SELECT last_access FROM BotClient WHERE id = ?",
@@ -109,7 +109,7 @@ async fn access_update() {
 
     // Let a second happen
     sleep(Duration::from_secs(1)).await;
-    assert!(handler.update_access_time(client_id).await.is_ok());
+    assert!(handler.db_update_access_time(&client_id).await.is_ok());
 
     let access_time_t2 = sqlx::query!(
         "SELECT last_access FROM BotClient WHERE id = ?",
@@ -133,10 +133,10 @@ async fn register() {
         0: source.read::<u64>(),
     };
     let auto_register = false;
-    let handler = ClientHandler::new(app.pool.clone());
+    let handler = ClientHandler::new(app.pool.clone(), 4, chrono::TimeDelta::days(1));
 
     handler
-        .register_client(client_id, auto_register)
+        .db_register_client(&client_id, auto_register)
         .await
         .expect("Failed to register a new client");
 
@@ -162,7 +162,7 @@ async fn register() {
     };
     assert_eq!(registered, auto_register);
 
-    assert!(handler.mark_as_registered(client_id).await.is_ok());
+    assert!(handler.db_mark_as_registered(&client_id).await.is_ok());
 
     let test_client = sqlx::query!("SELECT * FROM BotClient WHERE id=?", client_id.0)
         .fetch_one(&app.pool)
@@ -181,7 +181,7 @@ async fn subscriptions() {
         0: source.read::<u64>(),
     };
     let access_level = BotAccess::Free;
-    let handler = ClientHandler::new(app.pool.clone());
+    let handler = ClientHandler::new(app.pool.clone(), 4, chrono::TimeDelta::days(1));
 
     // Seed a client
     app.pool
@@ -195,7 +195,7 @@ async fn subscriptions() {
         .expect("Failed to seed the DB with a client.");
 
     // No subscriptions yet
-    let subscriptions = match handler.subscriptions(client_id).await {
+    let subscriptions = match handler.db_subscriptions(&client_id).await {
         Ok(s) => s,
         Err(e) => panic!("Error trying to get subscriptions: {}", e),
     };
@@ -203,52 +203,52 @@ async fn subscriptions() {
     assert!(subscriptions.is_empty(), "Subscriptions should be empty");
 
     handler
-        .add_subscriptions(&["SAN"], client_id)
+        .db_add_subscriptions(&["SAN"], &client_id)
         .await
         .expect("Failed to add a subscription");
     let subscriptions = handler
-        .subscriptions(client_id)
+        .db_subscriptions(&client_id)
         .await
         .expect("Failed to get subscriptions");
     assert_eq!(subscriptions.into_iter().collect::<Vec<_>>(), ["SAN"]);
 
     handler
-        .add_subscriptions(&["BBVA"], client_id)
+        .db_add_subscriptions(&["BBVA"], &client_id)
         .await
         .expect("Failed to add a subscription");
     let subscriptions = handler
-        .subscriptions(client_id)
+        .db_subscriptions(&client_id)
         .await
         .expect("Failed to get subscriptions");
     let temp_v = subscriptions.into_iter().collect::<Vec<_>>();
     assert!(temp_v == ["SAN", "BBVA"] || temp_v == ["BBVA", "SAN"]);
 
     handler
-        .remove_subscriptions(&["BBVA"], client_id)
+        .db_remove_subscriptions(&["BBVA"], &client_id)
         .await
         .expect("Failed to remove a subscription");
     let subscriptions = handler
-        .subscriptions(client_id)
+        .db_subscriptions(&client_id)
         .await
         .expect("Failed to get subscriptions");
     assert_eq!(subscriptions.into_iter().collect::<Vec<_>>(), ["SAN"]);
 
     handler
-        .remove_subscriptions(&["SAB"], client_id)
+        .db_remove_subscriptions(&["SAB"], &client_id)
         .await
         .expect("Failed to remove a subscription");
     let subscriptions = handler
-        .subscriptions(client_id)
+        .db_subscriptions(&client_id)
         .await
         .expect("Failed to get subscriptions");
     assert_eq!(subscriptions.into_iter().collect::<Vec<_>>(), ["SAN"]);
 
     handler
-        .add_subscriptions(&["SAN"], client_id)
+        .db_add_subscriptions(&["SAN"], &client_id)
         .await
         .expect("Failed to add a subscription");
     let subscriptions = handler
-        .subscriptions(client_id)
+        .db_subscriptions(&client_id)
         .await
         .expect("Failed to get subscriptions");
     assert_eq!(subscriptions.into_iter().collect::<Vec<_>>(), ["SAN"]);
