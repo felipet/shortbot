@@ -21,7 +21,7 @@ impl ClientDbHandler for ClientHandler {
 
     async fn is_registered(&self, client_id: UserId) -> Result<bool, ClientError> {
         let row = sqlx::query!("SELECT registered FROM BotClient WHERE id = ?", client_id.0)
-            .fetch_one(&self.db_conn)
+            .fetch_optional(&self.db_conn)
             .await?;
 
         Ok(row.registered != 0)
