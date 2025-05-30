@@ -34,8 +34,11 @@ use teloxide::types::UserId;
 use tokio::sync::mpsc;
 use tracing::{debug, warn};
 
-/// Minimum allowed cache refresh request interval. Avoids using low values from external config files.
+/// Minimum allowed cache refresh request interval (minutes). Avoids using low values from external config files.
 const DEFAULT_MINIMUM_CACHE_REFRESH: i64 = 60;
+
+/// Transmission timeout for the cache maintenance channel (milliseconds).
+const DEFAULT_CACHE_TX_CHANNEL_TIMEOUT: u64 = 1;
 
 /// Handler for the management of the client's metadata.
 pub struct ClientHandler {
@@ -79,25 +82,28 @@ impl ClientHandler {
     ///
     /// This method acts as high level API to retrieve the access level ([BotAccess]) of a client of the bot.
     pub async fn access_level(&self, client_id: &UserId) -> Result<BotAccess, ClientError> {
-        // match self.cache.data.get(&client_id.0).await {
-        //     Some(metadata) => {
-        //         // The Default DateTime is Jan 1970.
-        //         if Utc::now() - metadata.last_update.unwrap_or_default() > self.cache_expiry {
-        //             // TODO: use a duration from a constant
-        //             self.tx_channel
-        //                 .send_timeout(format!("update:{}", client_id.0), Duration::from_millis(1))
-        //                 .await;
-        //             self.db_access_level(&client_id).await
-        //         } else {
-        //             Ok(metadata.access_level)
-        //         }
-        //     }
-        //     None => {
-        //         debug!("Access level requested for client not registered");
-        //         Ok(BotAccess::Free)
-        //     }
-        // }
-        Ok(BotAccess::Free)
+        match self.cache.data.get(&client_id.0).await {
+            Some(metadata) => {
+                // The Default DateTime is Jan 1970.
+                if Utc::now() - metadata.last_update.unwrap_or_default() > self.cache_expiry {
+                    self.tx_channel
+                        .send_timeout(
+                            format!("update:{}", client_id.0),
+                            Duration::from_millis(DEFAULT_CACHE_TX_CHANNEL_TIMEOUT),
+                        )
+                        .await;
+                    debug!("Access level metadata was expired");
+                    self.db_access_level(&client_id).await
+                } else {
+                    debug!("Access level metadata was cached");
+                    Ok(metadata.access_level)
+                }
+            }
+            None => {
+                debug!("Access level requested for client not registered");
+                Ok(BotAccess::Free)
+            }
+        }
     }
 
     /// Method that refreshes the last access time of the user.
@@ -110,9 +116,38 @@ impl ClientHandler {
     /// If the method is called using a client ID which wasn't registered before in the DB, it will call
     /// the register method in auto-mode.
     pub async fn refresh_access(&self, _client_id: &UserId) -> Result<(), ClientError> {
-        // TODO
+        unimplemented!("Refresh access API not implemented")
+    }
 
-        Ok(())
+    /// Method that returns whether an user is registered as a client.
+    pub async fn is_registered(&self, _client_id: &UserId) -> Result<bool, ClientError> {
+        unimplemented!("Is registered client API not implemented")
+    }
+
+    /// Method that registers an user as a client.
+    pub async fn register_client(&self, _client_id: &UserId) -> Result<(), ClientError> {
+        unimplemented!("Register client API not implemented")
+    }
+
+    /// Method that retrieves the subscriptions of the client.
+    pub async fn subscriptions(&self, _client_id: &UserId) -> Result<Subscriptions, ClientError> {
+        unimplemented!("Subscriptions API not implemented")
+    }
+
+    /// Method that adds tickers to the subscription list of the client.
+    pub async fn add_subscriptions(
+        &self,
+        _client_id: &UserId,
+    ) -> Result<Subscriptions, ClientError> {
+        unimplemented!("Subscriptions API not implemented")
+    }
+
+    /// Method that removes tickers from the subscription list of the client.
+    pub async fn remove_subscriptions(
+        &self,
+        _client_id: &UserId,
+    ) -> Result<Subscriptions, ClientError> {
+        unimplemented!("Subscriptions API not implemented")
     }
 
     async fn db_access_level(&self, client_id: &UserId) -> Result<BotAccess, ClientError> {
