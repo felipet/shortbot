@@ -16,6 +16,7 @@
 
 use crate::{ClientMeta, UserId};
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use whirlwind::ShardMap;
 
 /// Object that represents a cache for bot client's metadata.
@@ -47,16 +48,25 @@ use whirlwind::ShardMap;
 /// [Vec] was selected to keep a simple unordered list of the registered clients. This list is only used when
 /// iteration over the existing clients is needed. The rest of the operations is issued to the HashMap.
 #[derive(Clone)]
-pub(crate) struct Cache {
-    pub data: ShardMap<UserId, Arc<ClientMeta>>,
-    pub clients: Vec<UserId>,
+pub struct Cache {
+    pub data: ShardMap<UserId, ClientMeta>,
+    pub clients: Arc<Mutex<Vec<UserId>>>,
 }
 
 impl Default for Cache {
     fn default() -> Self {
-        Cache {
+        Self {
             data: ShardMap::new(),
-            clients: Vec::new(),
+            clients: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+}
+
+impl Cache {
+    pub fn new(shards: usize) -> Self {
+        Self {
+            data: ShardMap::with_shards(shards),
+            ..Default::default()
         }
     }
 }
