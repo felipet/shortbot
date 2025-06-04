@@ -36,6 +36,48 @@ pub struct Subscriptions {
     tickers: HashSet<String>,
 }
 
+impl std::ops::AddAssign for Subscriptions {
+    fn add_assign(&mut self, rhs: Self) {
+        rhs.tickers.iter().for_each(|e| {
+            self.tickers.insert(e.clone());
+        });
+    }
+}
+
+impl std::ops::AddAssign<&Self> for Subscriptions {
+    fn add_assign(&mut self, rhs: &Self) {
+        rhs.tickers.iter().for_each(|e| {
+            self.tickers.insert(e.clone());
+        });
+    }
+}
+
+impl std::ops::Sub for &Subscriptions {
+    type Output = Subscriptions;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let new_set = &self.tickers - &rhs.tickers;
+
+        Self::Output { tickers: new_set }
+    }
+}
+
+impl std::ops::SubAssign for Subscriptions {
+    fn sub_assign(&mut self, other: Self) {
+        other.tickers.iter().for_each(|e| {
+            self.tickers.remove(e);
+        });
+    }
+}
+
+impl std::ops::SubAssign<&Self> for Subscriptions {
+    fn sub_assign(&mut self, other: &Self) {
+        other.tickers.iter().for_each(|e| {
+            self.tickers.remove(e);
+        });
+    }
+}
+
 impl Subscriptions {
     /// Add a new subscription identified by a series of tickers.
     ///
