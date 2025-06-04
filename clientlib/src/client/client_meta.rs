@@ -25,8 +25,8 @@ use std::str::FromStr;
 /// This `struct` represents a data object for a client of the bot. It contains
 /// data that is stored in a DB, but also data that is only needed for the
 /// internal use of the cache.
-#[derive(Debug, Clone, Eq)]
-pub(crate) struct ClientMeta {
+#[derive(Debug, Default, Clone, Eq)]
+pub struct ClientMeta {
     /// Flag that identifies when a client was soft-registered or hard-registered.
     pub registered: bool,
     /// Identifies the level of access of the client. See [BotAccess].
