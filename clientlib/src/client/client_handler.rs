@@ -52,6 +52,7 @@ pub struct ClientHandler {
     tx_channel: mpsc::Sender<String>,
 }
 
+// TODO: honor the expiry ts as access_level does
 impl ClientHandler {
     pub fn new(
         db_conn: MySqlPool,
@@ -154,7 +155,9 @@ impl ClientHandler {
             Some(mut metadata) => {
                 if !metadata.registered {
                     metadata.registered = true;
-                    metadata.last_access = Some(Utc::now());
+                    let now = Some(Utc::now());
+                    metadata.last_access = now.clone();
+                    metadata.last_update = now;
                     self.db_mark_as_registered(client_id).await?;
                 } else {
                     warn!("User {} is already registered", client_id.0);
@@ -164,6 +167,9 @@ impl ClientHandler {
                 self.db_register_client(client_id, false).await?;
                 let mut dummy_meta = ClientMeta::default();
                 dummy_meta.registered = true;
+                let now = Some(Utc::now());
+                dummy_meta.last_access = now.clone();
+                dummy_meta.last_update = now;
                 self.cache.data.insert(client_id.0, dummy_meta).await;
                 info!("User {} registered in the DB", client_id.0);
             }
@@ -248,6 +254,25 @@ impl ClientHandler {
         };
 
         Ok(())
+    }
+
+    /// Method that modifies the access level of a client.
+    pub async fn modify_access_level(
+        &self,
+        client_id: &UserId,
+        access: BotAccess,
+    ) -> Result<(), ClientError> {
+        match self.cache.data.get_mut(&client_id.0).await {
+            Some(mut meta) => {
+                meta.access_level = access;
+                self.notify_cache_handler(client_id).await;
+                Ok(())
+            }
+            None => {
+                warn!("The user ID is not registered as a client of the bot");
+                Err(ClientError::ClientNotRegistered)
+            }
+        }
     }
 
     async fn db_access_level(&self, client_id: &UserId) -> Result<BotAccess, ClientError> {
@@ -716,5 +741,294 @@ mod tests {
         assert!(subscriptions.is_none());
 
         Ok(())
+    }
+
+    /// TC: Get the access level of an unregistered user.
+    ///
+    /// # Description
+    ///
+    /// ## Pre
+    ///
+    /// - The cache is empty.
+    /// - There are no client records in the DB.
+    ///
+    /// ## Inputs
+    ///
+    /// - A random user ID.
+    /// - An empty cache.
+    ///
+    /// ## TC
+    ///
+    /// Any unregistered user of the bot must get assigned a level of access `BotAccess::Free`.
+    ///
+    /// ## Result
+    ///
+    /// The user identified by the random ID has an access level = `BotAccess::Free`.
+    #[sqlx::test]
+    async fn access_level_tc1(pool: MySqlPool) {
+        Lazy::force(&TRACING);
+
+        let mut source = random::default(42);
+        let client_id = UserId {
+            0: source.read::<u64>(),
+        };
+        let expected_access_level = BotAccess::Free;
+        let (_, client_handler) = ClientObjectsBuilder::new(pool.clone()).build();
+
+        let access_test = client_handler
+            .access_level(&client_id)
+            .await
+            .expect("Error trying to get access level");
+        assert_eq!(
+            access_test, expected_access_level,
+            "Access level should be free"
+        );
+    }
+
+    /// TC: Get the access level of a registered user.
+    ///
+    /// # Description
+    ///
+    /// ## Pre
+    ///
+    /// - The cache contains a registered client.
+    /// - The register user API is implemented and tested.
+    ///
+    /// ## Inputs
+    ///
+    /// - A registered user's ID.
+    ///
+    /// ## TC
+    ///
+    /// Test that the stored value is retrieved from user stored in the DB.
+    ///
+    /// ## Result
+    ///
+    /// TThe retrieved access level matches the value stored in the DB.
+    #[sqlx::test]
+    async fn access_level_tc2(pool: MySqlPool) -> sqlx::Result<()> {
+        Lazy::force(&TRACING);
+
+        let mut source = random::default(42);
+
+        let (_, client_handler) = ClientObjectsBuilder::new(pool.clone()).build();
+        let access_level_table = vec![
+            (
+                UserId {
+                    0: source.read::<u64>(),
+                },
+                BotAccess::Free,
+            ),
+            (
+                UserId {
+                    0: source.read::<u64>(),
+                },
+                BotAccess::Limited,
+            ),
+            (
+                UserId {
+                    0: source.read::<u64>(),
+                },
+                BotAccess::Unlimited,
+            ),
+            (
+                UserId {
+                    0: source.read::<u64>(),
+                },
+                BotAccess::Admin,
+            ),
+        ];
+
+        // Modify the access level of the test clients according to the table.
+        for (id, ba) in access_level_table.iter() {
+            client_handler
+                .register_client(id)
+                .await
+                .expect("Failed to register client");
+            client_handler
+                .modify_access_level(id, *ba)
+                .await
+                .expect("Failed to modify access");
+        }
+
+        // Test
+        for (id, access) in access_level_table.iter() {
+            assert_eq!(
+                *access,
+                client_handler
+                    .access_level(id)
+                    .await
+                    .expect("Error trying to get access level")
+            );
+        }
+
+        Ok(())
+    }
+
+    /// TC1: Get the access level of an unregistered user.
+    ///
+    /// # Description
+    ///
+    /// ## Pre
+    ///
+    /// - The cache is empty.
+    /// - There are no client records in the DB.
+    ///
+    /// ## Inputs
+    ///
+    /// - A random user ID.
+    /// - An empty cache.
+    ///
+    /// ## TC
+    ///
+    /// Any unregistered user of the bot must get assigned a level of access `BotAccess::Free`.
+    ///
+    /// ## Result
+    ///
+    /// The user identified by the random ID has an access level = `BotAccess::Free`.
+    #[sqlx::test]
+    async fn register_tc1(pool: MySqlPool) {
+        Lazy::force(&TRACING);
+
+        // Test setup
+        let mut source = random::default(42);
+        let client_id = UserId {
+            0: source.read::<u64>(),
+        };
+        let (_, client_handler) = ClientObjectsBuilder::new(pool.clone()).build();
+
+        // Register a new client using the API
+        client_handler
+            .register_client(&client_id)
+            .await
+            .expect("Failed to register a new client");
+
+        // Extract it using a raw SQL query
+        let db_client = match sqlx::query!("SELECT * FROM BotClient WHERE id = ?", client_id.0)
+            .fetch_optional(&pool)
+            .await
+            .expect("Failed to retrieve registered client")
+        {
+            Some(row) => ClientMeta {
+                registered: if row.registered > 0 { true } else { false },
+                access_level: BotAccess::from_str(&row.access).unwrap(),
+                subscriptions: match row.subscriptions {
+                    Some(s) => Some(
+                        Subscriptions::try_from(&s)
+                            .expect("Failed to parse a subscription list from the DB"),
+                    ),
+                    None => None,
+                },
+                last_access: row.last_access,
+                last_update: None,
+                created_at: row.created_at,
+            },
+            None => panic!("Failed to register a new client"),
+        };
+
+        // Ensure the base fields hold the expected values
+        assert_eq!(db_client.registered, true);
+        assert_eq!(db_client.access_level, BotAccess::Free);
+        assert_eq!(db_client.subscriptions, None);
+        assert!(db_client.created_at.is_some());
+    }
+
+    /// TC2: Attempt to register an existing client
+    ///
+    /// # Description
+    ///
+    /// ## Pre
+    ///
+    /// - The cache is empty.
+    /// - The client is already registered as a hard-client.
+    ///
+    /// ## Inputs
+    ///
+    /// - A random user ID.
+    ///
+    /// ## TC
+    ///
+    /// Attempt to register twice a user of the bot.
+    ///
+    /// ## Result
+    ///
+    /// The API must return OK and only one entry is registered in the DB.
+    #[sqlx::test]
+    async fn register_tc2(pool: MySqlPool) {
+        Lazy::force(&TRACING);
+
+        // Test setup
+        let mut source = random::default(42);
+        let client_id = UserId {
+            0: source.read::<u64>(),
+        };
+        let (_, client_handler) = ClientObjectsBuilder::new(pool.clone()).build();
+
+        // Register a new client using the API
+        client_handler
+            .register_client(&client_id)
+            .await
+            .expect("Failed to register a new client");
+
+        // Register a new client using the API
+        client_handler
+            .register_client(&client_id)
+            .await
+            .expect("Failed to register a new client");
+
+        // Extract it using a raw SQL query
+        let clients = sqlx::query!("SELECT * FROM BotClient")
+            .fetch_all(&pool)
+            .await
+            .expect("Failed to retrieve registered client");
+
+        assert_eq!(clients.len(), 1);
+    }
+
+    /// TC1: Check that a new client id is not registered.
+    ///
+    /// # Description
+    ///
+    /// ## Pre
+    ///
+    /// - The cache is empty.
+    ///
+    /// ## Inputs
+    ///
+    /// - A unregistered user's ID.
+    /// - An empty cache.
+    ///
+    /// ## TC
+    ///
+    /// Test that the API detects new IDs, and proceeds to register these as _soft-clients_.
+    /// After that, if we repeat the check, we must receive the same result.
+    ///
+    /// ## Result
+    ///
+    /// We receive `false` for a unregistered user's ID.
+    #[sqlx::test]
+    async fn is_registered_tc1(pool: MySqlPool) {
+        Lazy::force(&TRACING);
+
+        let mut source = random::default(42);
+        let client_id = UserId {
+            0: source.read::<u64>(),
+        };
+        let (_, client_handler) = ClientObjectsBuilder::new(pool.clone()).build();
+
+        assert_eq!(
+            false,
+            client_handler
+                .is_registered(&client_id)
+                .await
+                .expect("Failed to check ID")
+        );
+        assert_eq!(
+            false,
+            client_handler
+                .is_registered(&client_id)
+                .await
+                .expect("Failed to check ID")
+        );
     }
 }
