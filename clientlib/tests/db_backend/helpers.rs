@@ -13,14 +13,39 @@
 //    limitations under the License.
 
 use configuration::{DatabaseSettings, Settings, build_db_conn_with_db, build_db_conn_without_db};
+use once_cell::sync::Lazy;
 use sqlx::{Connection, Executor, MySqlConnection, MySqlPool};
+use tracing::{Level, subscriber::set_global_default};
+use tracing_subscriber::FmtSubscriber;
 use uuid::Uuid;
+
+static TRACING: Lazy<()> = Lazy::new(|| {
+    if std::env::var("TEST_LOG").is_ok() {
+        let level = std::env::var("TEST_LOG").expect("Failed to read the content of TEST_LOG var");
+        let level = match level.as_str() {
+            "info" => Some(Level::INFO),
+            "debug" => Some(Level::DEBUG),
+            "warn" => Some(Level::WARN),
+            "error" => Some(Level::ERROR),
+            &_ => None,
+        };
+
+        if level.is_some() {
+            let subscriber = FmtSubscriber::builder()
+                .with_max_level(level.unwrap())
+                .finish();
+            set_global_default(subscriber).expect("Failed to set subscriber.");
+        }
+    }
+});
 
 pub struct TestApp {
     pub pool: MySqlPool,
 }
 
 pub async fn test_setup() -> TestApp {
+    Lazy::force(&TRACING);
+
     let configuration = {
         let mut cfg = Settings::new().expect("Failed to read configuration file.");
         cfg.database.mariadb_dbname = Uuid::new_v4().to_string();
