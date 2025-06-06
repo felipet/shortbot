@@ -1,0 +1,1 @@
+𝚺 El total de la posición corta es: <b>{:.2} %</b>

@@ -1,0 +1,5 @@
+¡Bienvenido {} al Ibex35 ShortBot 🕵️!
+
+Este bot permite comprobar de manera fácil si un valor del Ibex35 tiene alguna ⤵️ posición en corto abierta en el momento de la comprobación.
+
+Para comenzar rápidamente, simplemente usa el comando /short o comprueba la ayuda usando /ayuda.

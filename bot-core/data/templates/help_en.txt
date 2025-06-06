@@ -1,0 +1,12 @@
+⤵️ <b>ShortBot</b> checks whether a value of the Ibex35 has an alive short position against it.
+
+The information is retrieved from CNMV's web page.
+
+🤳 For a given stock, the bot checks if there's any ✓ open short position at the moment, and sums up 𝚺 the size of all the active short positions against the stock.
+
+Moreover, it is detailed a full list of all the individual short positions, including the % of the position compared to the capital of the company, and the date at which the position was notified to the regulator.
+
+🔎 Updates to the regulator are given once per day, thus open positions won't change
+until the next day (at least).
+
+👨‍🔧 This bot is under development, and new features will be released soon! If you find a bug, or you'd like to propose a new feature, please subscribe to the @ibexshortbot_channel channel in Telegram.

@@ -19,6 +19,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  SQLX_FEATURES: "mysql"
+  SQLX_VERSION: "0.8.3"
 
 jobs:
   fmt:
@@ -44,7 +46,7 @@ jobs:
         with:
           components: rustfmt clippy
       - name: Build
-        run: cargo check --future-incompat-report
+        run: SQLX_OFFLINE=true cargo check --future-incompat-report
 
   clippy:
     name: Clippy
@@ -57,7 +59,7 @@ jobs:
         with:
           components: rustfmt clippy
       - name: Linting
-        run: cargo clippy --no-deps -- -D warnings
+        run: SQLX_OFFLINE=true cargo clippy --no-deps -- -D warnings
 
   test:
     name: Test
@@ -68,5 +70,43 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - uses: getong/mariadb-action@v1.11
+        with:
+           mysql root password: "password"
+           mysql database: "shortbot"
+           mysql user: "root"
+           mysql password: "password"
+      - name: Start QuestDb
+        uses: QuadStingray/questdb-github-action@v1.0.0
+        with:
+          questdb-port-postgresql: 8812
+      - name: Install SQLx-cli
+        run:
+            cargo install sqlx-cli
+            --version=${{ env.SQLX_VERSION }}
+            --features ${{ env.SQLX_FEATURES }}
+            --no-default-features
+            --locked
+      - name: Migrate database MariaDB
+        run: |
+          DATABASE_URL="mariadb://root:password@localhost:3306/shortbot" sqlx migrate run --source clientlib/migrations
+      - name: DB migration QuestDB I
+        run: |
+          curl -G \
+          -u "user:password" \
+          --data-urlencode "query=CREATE TABLE 'alive_position' (id UUID);" \
+          http://localhost:9000/exec
+      - name: DB migration QuestDB II
+        run: |
+          curl -G \
+          -u "user:password" \
+          --data-urlencode "query=CREATE TABLE 'ibex35_listing' (ticker SYMBOL capacity 256 CACHE, name VARCHAR,  full_name VARCHAR, isin VARCHAR, extra_id VARCHAR);" \
+          http://localhost:9000/exec
+      - name: DB migration QuestDB III
+        run: |
+          curl -G \
+          -u "user:password" \
+          --data-urlencode "query=CREATE TABLE 'ibex35_short_historic' (id UUID, ticker SYMBOL capacity 256 CACHE, owner VARCHAR, weight FLOAT, open_date TIMESTAMP) timestamp (open_date) PARTITION BY DAY WAL;" \
+          http://localhost:9000/exec
       - name: Tests
-        run: cargo test
+        run: cargo test --package clientlib

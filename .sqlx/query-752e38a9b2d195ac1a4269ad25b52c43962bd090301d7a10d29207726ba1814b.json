@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "UPDATE BotClient\n                SET registered = ?, access = ?, subscriptions = ?, created_at = ?, last_access = ?\n                WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "752e38a9b2d195ac1a4269ad25b52c43962bd090301d7a10d29207726ba1814b"
+}

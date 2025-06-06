@@ -1,3 +1,0 @@
-You chose the Ibex35 stock: <b>{}</b>
-
-🔎 Checking alive short positions...

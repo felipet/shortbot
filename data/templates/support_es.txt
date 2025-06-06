@@ -1,7 +1,0 @@
-🧑‍💻 ¿Te resulta útil usar este bot? Yo disfruto mucho desarrollándolo, y estoy muy contento de no tener que acceder a la web de la CNMV para consultar las posiciones en corto, ya que tiene un diseño muy molesto.
-
-Todavía tengo muchas ideas en el tintero para mejorar el bot: monitorización de posiciones activas en valores, vigilancia para detectar nuevas posiciones en valores que no las tenían, gráficos, y un largo etc. Sin embargo, el desarrollo consume mucho de mi tiempo disponible.
-
-♥️  Si quieres mostrar tu agradecimiento, puedes <a href="https://buymeacoffee.com/felipetg">pagarme un café</a> o hacerme una donación a través de Paypal (torresfelipex1@gmail.com).
-
-¡Muchísimas gracias!
