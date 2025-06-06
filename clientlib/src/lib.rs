@@ -100,12 +100,12 @@ pub use client::{client_handler::ClientHandler, subscriptions::Subscriptions};
 
 /// Cache management module.
 mod cache {
-    pub(crate) mod cache;
-    pub(crate) mod cache_handler;
+    pub mod cache_handler;
+    pub mod cache_type;
 }
 
-pub(crate) use cache::cache::Cache;
 pub use cache::cache_handler::CacheHandler;
+pub use cache::cache_type::Cache;
 
 /// The backend is not expected to run using too many threads. Keep this low unless
 /// the number of threads escalates enough.
