@@ -293,6 +293,7 @@ mod tests {
     use crate::{ClientObjectsBuilder, Subscriptions};
     use once_cell::sync::Lazy;
     use random::Source;
+    use std::str::FromStr;
     use tracing::{Level, subscriber::set_global_default};
     use tracing_subscriber::FmtSubscriber;
 
