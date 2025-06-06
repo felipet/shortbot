@@ -16,11 +16,12 @@
 
 use crate::{BotAccess, Subscriptions};
 use crate::{Cache, ClientError, ClientMeta, UserId};
-use chrono::{DateTime, TimeDelta, Utc};
-use sqlx::MySqlPool;
+use chrono::Utc;
+use sqlx::{Executor, MySqlPool};
+use std::sync::Mutex;
 use std::{str::FromStr, sync::Arc};
 use tokio::sync::mpsc;
-use tracing::{info, warn};
+use tracing::{error, info, instrument};
 // use chrono::{DateTime, Utc};
 
 /// Handles maintenance tasks to keep coherent the client cache respect to the data base.
@@ -44,7 +45,7 @@ pub struct CacheHandler {
     rx_channel: mpsc::Receiver<String>,
     cache: Arc<Cache>,
     /// List of IDs whose metadata needs refreshing.
-    update_queue: Vec<UserId>,
+    update_queue: Mutex<Vec<UserId>>,
     /// Threshold to trigger the process of the queue tasks.
     queue_service: usize,
 }
@@ -79,6 +80,8 @@ enum CacheHandlerCmd {
     #[default]
     Ping,
     Update(String),
+    Save,
+    Load,
     Stop,
 }
 
@@ -109,94 +112,366 @@ impl CacheHandler {
             db_conn,
             rx_channel,
             cache,
-            update_queue: Vec::new(),
+            update_queue: Mutex::new(Vec::new()),
             queue_service: use_queue,
         }
     }
 
     pub async fn start(&mut self) -> Result<(), ClientError> {
-        // while let Some(msg) = self.rx_channel.recv().await {
-        //     match CacheHandlerCmd::from(msg.to_string()) {
-        //         CacheHandlerCmd::Ping => {
-        //             info!("Ping received");
-        //             if self.update_queue.len() >= self.queue_service {
-        //                 self.process_queue().await?;
-        //             }
-        //         }
-        //         _ => {
-        //             info!("Stop command received. Graceful shutdown the cache handler");
-        //             //TODO: save the cache
-        //             return Ok(());
-        //         }
-        //     }
-        // }
+        while let Some(msg) = self.rx_channel.recv().await {
+            match CacheHandlerCmd::from(msg.to_string()) {
+                CacheHandlerCmd::Ping => {
+                    info!("Ping command received");
+                    if self.update_queue.lock().unwrap().len() >= self.queue_service {
+                        self.process_queue().await?;
+                    }
+                }
+                CacheHandlerCmd::Save => {
+                    info!("Save command received");
+                    self.save_cache().await?;
+                }
+                CacheHandlerCmd::Load => {
+                    info!("Load command received");
+                    self.load_cache().await?;
+                }
+                CacheHandlerCmd::Update(u) => {
+                    info!("Update command received for {u}");
+                    let id: u64 = u.parse().unwrap();
+                    {
+                        self.update_queue.lock().unwrap().push(id);
+                    }
+                }
+                _ => {
+                    info!("Stop command received. Graceful shutdown the cache handler");
+                    self.save_cache().await?;
+                    return Ok(());
+                }
+            }
+        }
 
         Ok(())
     }
 
-    pub async fn process_queue(&mut self) -> Result<(), ClientError> {
-        // for key in self.update_queue.iter() {
-        //     let db_entry = sqlx::query!(
-        //         r#"
-        //             SELECT registered, access, subscriptions, created_at, last_access
-        //             FROM BotClient
-        //             WHERE id = ?
-        //         "#,
-        //         key
-        //     )
-        //     .fetch_optional(&self.db_conn)
-        //     .await?;
+    /// Save the content of the cache to permanent memory.
+    #[instrument(name = "Process the queued update requests", skip(self))]
+    pub async fn process_queue(&self) -> Result<(), ClientError> {
+        let update_list: Vec<u64>;
 
-        //     let db_meta = match db_entry {
-        //         Some(record) => ClientMeta {
-        //             registered: record.registered != 0,
-        //             access_level: BotAccess::from_str(&record.access).unwrap_or(BotAccess::Free),
-        //             subscriptions: Some(Subscriptions::try_from(
-        //                 record.subscriptions.unwrap_or("".to_owned()),
-        //             )?),
-        //             last_access: record.last_access,
-        //             last_update: None,
-        //             created_at: record.created_at,
-        //         },
-        //         None => return Err(ClientError::UnknownDbError("????".to_owned())),
-        //     };
+        // Lock the list and make a clone, so the lock doesn't hold and blocks other threads
+        // that might push new update jobs to the new list.
+        {
+            let mut queue = self.update_queue.lock().unwrap();
+            update_list = queue.clone();
+            queue.clear();
+        }
 
-        // let cache_meta = self.cache.data.get(key).await.unwrap_or(default)
-        // }
+        for item in update_list.into_iter() {
+            let meta = match self.cache.data.get(&item).await {
+                Some(metadata) => Arc::new(metadata.clone()),
+                None => {
+                    error!("ID from the client list {item} not present in the cache");
+                    return Err(ClientError::CacheIncongruence);
+                }
+            };
 
-        // self.update_queue.clear();
+            self.update_db_entry(item, &meta).await?;
+        }
 
         Ok(())
     }
 
-    pub async fn update_cache(&mut self) -> Result<(), ClientError> {
+    /// Save the content of the cache to permanent memory.
+    #[instrument(name = "Save the in-memory cache content", skip(self))]
+    pub async fn save_cache(&self) -> Result<(), ClientError> {
+        // Hold the lock: prevent new registries or changes in the client list.
+        {
+            let client_list = self.cache.clients.lock().await;
+
+            for client in client_list.iter() {
+                let meta = match self.cache.data.get(client).await {
+                    Some(m) => Arc::new(m.clone()),
+                    None => {
+                        error!("The ID {client} wasn't included in the cache");
+                        return Err(ClientError::CacheIncongruence);
+                    }
+                };
+
+                self.update_db_entry(*client, &meta).await?;
+            }
+        }
+        // Lock released
+
         Ok(())
     }
 
-    // pub async fn save_cache(&mut self) -> Result<(), ClientError> {
-    //     for client in self.cache.client_list.iter() {
-    //         match self.cache.get_mut(client).await {
-    //             Some(mut metadata) => {
-    //                 self.db_conn
-    //                     .execute(sqlx::query!(
-    //                         r#"
-    //                         UPDATE BotClient
-    //                         SET registered = ?, access = ?, subscriptions = ?, last_access = ?
-    //                         WHERE id = ?
-    //                     "#,
-    //                         metadata.registered,
-    //                         metadata.access_level.to_string(),
-    //                         metadata.subscriptions.to_string(),
-    //                         metadata.last_access.to_string(),
-    //                         client.0,
-    //                     ))
-    //                     .await?;
-    //                 metadata.last_update = Utc::now();
-    //             }
-    //             None => warn!("Missing cache metadata for client: {}", client.0),
-    //         }
-    //     }
+    /// Load the content of the cache from permanent memory.
+    #[instrument(name = "Load the in-memory cache content", skip(self))]
+    pub async fn load_cache(&self) -> Result<(), ClientError> {
+        let raw_cache = sqlx::query!("SELECT * from BotClient")
+            .fetch_all(&self.db_conn)
+            .await?;
 
-    //     Ok(())
-    // }
+        for r in raw_cache {
+            // Lock the client list
+            {
+                self.cache.clients.lock().await.push(r.id);
+                self.cache
+                    .data
+                    .insert(
+                        r.id,
+                        ClientMeta {
+                            registered: r.registered > 0,
+                            access_level: BotAccess::from_str(&r.access).map_err(|_| {
+                                ClientError::UnknownDbError(format!(
+                                    "Wrong format in BotAccess field for {}",
+                                    r.id,
+                                ))
+                            })?,
+                            subscriptions: match r.subscriptions {
+                                Some(s) => Some(Subscriptions::try_from(s).map_err(|_| {
+                                    ClientError::UnknownDbError(format!(
+                                        "Wrong format in BotAccess field for {}",
+                                        r.id,
+                                    ))
+                                })?),
+                                None => None,
+                            },
+                            last_access: r.last_access,
+                            last_update: Some(Utc::now()),
+                            created_at: r.created_at,
+                        },
+                    )
+                    .await;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Update the entry in the DB of a client of the bot.
+    #[instrument(name = "Update client entry in the DB", skip(self))]
+    async fn update_db_entry(
+        &self,
+        client_id: UserId,
+        new_data: &ClientMeta,
+    ) -> Result<(), ClientError> {
+        self.db_conn
+            .execute(sqlx::query!(
+                "UPDATE BotClient
+                SET registered = ?, access = ?, subscriptions = ?, created_at = ?, last_access = ?
+                WHERE id = ?",
+                new_data.registered,
+                new_data.access_level.to_string(),
+                match new_data.subscriptions.clone() {
+                    Some(s) => Some(s.to_string()),
+                    None => None,
+                },
+                new_data.created_at,
+                new_data.last_update,
+                client_id,
+            ))
+            .await?;
+
+        Ok(())
+    }
+
+    #[instrument(name = "Retrieve the entry of a client from the DB", skip(self))]
+    async fn retrieve_db_entry(&self, client_id: UserId) -> Result<ClientMeta, ClientError> {
+        let row = sqlx::query!("SELECT * FROM BotClient WHERE id = ?", client_id)
+            .fetch_optional(&self.db_conn)
+            .await?;
+
+        match row {
+            Some(r) => Ok(ClientMeta {
+                registered: r.registered > 0,
+                access_level: BotAccess::from_str(&r.access).map_err(|_| {
+                    ClientError::UnknownDbError(format!(
+                        "Wrong format in BotAccess field for {client_id}",
+                    ))
+                })?,
+                subscriptions: match r.subscriptions {
+                    Some(s) => Some(Subscriptions::try_from(s).map_err(|_| {
+                        ClientError::UnknownDbError(format!(
+                            "Wrong format in BotAccess field for {client_id}",
+                        ))
+                    })?),
+                    None => None,
+                },
+                last_access: r.last_access,
+                last_update: Some(Utc::now()),
+                created_at: r.created_at,
+            }),
+            None => Err(ClientError::ClientNotRegistered),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::*;
+    use crate::{ClientObjectsBuilder, Subscriptions};
+    use once_cell::sync::Lazy;
+    use random::Source;
+    use teloxide::types::UserId;
+    use tokio::time::sleep;
+    use tracing::{Level, subscriber::set_global_default};
+    use tracing_subscriber::FmtSubscriber;
+
+    static TRACING: Lazy<()> = Lazy::new(|| {
+        if std::env::var("TEST_LOG").is_ok() {
+            let level =
+                std::env::var("TEST_LOG").expect("Failed to read the content of TEST_LOG var");
+            let level = match level.as_str() {
+                "info" => Some(Level::INFO),
+                "debug" => Some(Level::DEBUG),
+                "warn" => Some(Level::WARN),
+                "error" => Some(Level::ERROR),
+                &_ => None,
+            };
+
+            if level.is_some() {
+                let subscriber = FmtSubscriber::builder()
+                    .with_max_level(level.unwrap())
+                    .finish();
+                set_global_default(subscriber).expect("Failed to set subscriber.");
+            }
+        }
+    });
+
+    #[sqlx::test]
+    async fn update_db_entry(pool: MySqlPool) -> sqlx::Result<()> {
+        Lazy::force(&TRACING);
+        let mut source = random::default(42);
+        let client_id = UserId {
+            0: source.read::<u64>(),
+        };
+        let initial_meta = ClientMeta {
+            registered: true,
+            access_level: BotAccess::Free,
+            subscriptions: None,
+            last_access: None,
+            last_update: None,
+            created_at: None,
+        };
+        let test_meta = ClientMeta {
+            registered: true,
+            access_level: BotAccess::Limited,
+            subscriptions: Some(
+                Subscriptions::try_from(["SAN"].as_slice()).expect("Failed to build subscriptions"),
+            ),
+            last_access: Some(Utc::now()),
+            last_update: Some(Utc::now()),
+            created_at: None,
+        };
+
+        pool.execute(sqlx::query!(
+            "INSERT INTO BotClient VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?)",
+            client_id.0,
+            initial_meta.registered,
+            initial_meta.access_level.to_string(),
+            match initial_meta.subscriptions {
+                Some(s) => Some(s.to_string()),
+                None => None,
+            },
+            initial_meta.last_access,
+        ))
+        .await?;
+
+        let (cache_handler, _) = ClientObjectsBuilder::new(pool.clone()).build();
+
+        cache_handler
+            .update_db_entry(client_id.0, &test_meta)
+            .await
+            .expect("Failed to update the DB entry");
+
+        let entry = cache_handler
+            .retrieve_db_entry(client_id.0)
+            .await
+            .expect("Failed to retrieve DB entry");
+
+        assert_eq!(entry, test_meta);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn load(pool: MySqlPool) -> sqlx::Result<()> {
+        Lazy::force(&TRACING);
+        let mut source = random::default(42);
+        let client_ids = source.iter().take(50).collect::<Vec<u64>>();
+
+        let (cache_handler, client_handler) = ClientObjectsBuilder::new(pool.clone()).build();
+
+        for id in client_ids {
+            client_handler
+                .register_client(&UserId(id))
+                .await
+                .expect("Failed to register a client");
+        }
+
+        cache_handler
+            .save_cache()
+            .await
+            .expect("Failed to save the cache");
+
+        // Now, load it.
+
+        let (cache_handler_test, _) = ClientObjectsBuilder::new(pool.clone()).build();
+
+        cache_handler_test
+            .load_cache()
+            .await
+            .expect("Failed to load the cache");
+
+        // Bot caches must be equal
+        let cache_initial = cache_handler.cache.clone();
+        let cache_loaded = cache_handler_test.cache.clone();
+
+        assert_eq!(
+            cache_initial.clients.lock().await.len(),
+            cache_loaded.clients.lock().await.len()
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn update(pool: MySqlPool) -> sqlx::Result<()> {
+        Lazy::force(&TRACING);
+        let mut source = random::default(42);
+        let client_ids = source.iter().take(10).collect::<Vec<u64>>();
+        let (tx, rx) = tokio::sync::mpsc::channel(20);
+
+        let (mut cache_handler, client_handler) = ClientObjectsBuilder::new(pool.clone())
+            .with_channel(tx.clone(), rx)
+            .build();
+
+        let task = tokio::spawn(async move { cache_handler.start().await });
+
+        for id in client_ids {
+            client_handler
+                .register_client(&teloxide::types::UserId(id))
+                .await
+                .expect("Failed to register the client");
+            tx.send(format!("update:{id}"))
+                .await
+                .expect("Failed to send message to the handler");
+        }
+
+        tx.send("ping".to_owned())
+            .await
+            .expect("Failed to send ping");
+
+        sleep(Duration::from_millis(10)).await;
+
+        tx.send("stop".to_owned())
+            .await
+            .expect("Failed to send message to the handler");
+
+        let _ = task.await.expect("Failed to graceful close the handler");
+
+        Ok(())
+    }
 }

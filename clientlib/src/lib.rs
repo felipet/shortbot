@@ -82,7 +82,6 @@
 //! After that, the whole workspace can be built using `cargo build`, but we need to run SQLx in offline mode:
 //! `export SQLX_OFFLINE=true`.
 
-use chrono::Duration;
 use sqlx::MySqlPool;
 use std::{str::FromStr, sync::Arc};
 use thiserror::Error;
@@ -95,7 +94,7 @@ mod client {
     pub(crate) mod subscriptions;
 }
 
-pub(crate) use client::client_meta::ClientMeta;
+pub use client::client_meta::ClientMeta;
 pub use client::{client_handler::ClientHandler, subscriptions::Subscriptions};
 
 /// Cache management module.
@@ -110,10 +109,6 @@ pub use cache::cache_type::Cache;
 /// The backend is not expected to run using too many threads. Keep this low unless
 /// the number of threads escalates enough.
 const DEFAULT_SHARDS: usize = 4;
-
-/// The most important metadata is the access type, and that is not expected to get
-/// updated more frequently than once per day.
-const DEFAULT_CACHE_EXPIRICY: Duration = Duration::days(1);
 
 /// Capacity of the MPSC channel that allows sending tasks to the [CacheHandler].
 const DEFAULT_BUFFER_SIZE: usize = 20;
@@ -144,6 +139,12 @@ pub enum ClientError {
     WrongSubscriptionString(String),
     #[error("Unknown error from the DB server")]
     UnknownDbError(String),
+    #[error("The user ID is not registered")]
+    ClientNotRegistered,
+    #[error("Subscription limit reached")]
+    ClientLimitReached,
+    #[error("Cache incongruence")]
+    CacheIncongruence,
 }
 
 /// Builder object that construct all the objects related to the bot client's DB & cache.
@@ -151,7 +152,6 @@ pub struct ClientObjectsBuilder {
     db_conn: MySqlPool,
     cache: Option<Cache>,
     shards: Option<usize>,
-    cache_expiricy: Option<chrono::Duration>,
     channel_size: Option<usize>,
     channel: Option<(Sender<String>, Receiver<String>)>,
     cache_queue_size: usize,
@@ -163,10 +163,9 @@ impl ClientObjectsBuilder {
             db_conn,
             cache: None,
             shards: None,
-            cache_expiricy: None,
             channel_size: None,
             channel: None,
-            cache_queue_size: 0,
+            cache_queue_size: DEFAULT_CACHE_TASK_QUEUE,
         }
     }
 
@@ -177,17 +176,13 @@ impl ClientObjectsBuilder {
         ));
 
         // Build a Cache when not provided.
-        let cache = Arc::new(self.cache.unwrap_or(whirlwind::ShardMap::with_shards(
-            self.shards.unwrap_or(DEFAULT_SHARDS),
-        )));
+        let cache = Arc::new(
+            self.cache
+                .unwrap_or(Cache::new(self.shards.unwrap_or(DEFAULT_SHARDS))),
+        );
 
         // Create an instance of ClientHandler.
-        let client_handler = ClientHandler::new(
-            self.db_conn.clone(),
-            cache.clone(),
-            self.cache_expiricy.unwrap_or(DEFAULT_CACHE_EXPIRICY),
-            tx_channel,
-        );
+        let client_handler = ClientHandler::new(self.db_conn.clone(), cache.clone(), tx_channel);
 
         // Create an instance of CacheHandler.
         let cache_handler = CacheHandler::new(
@@ -206,7 +201,7 @@ impl ClientObjectsBuilder {
         self
     }
 
-    pub fn with_cache_size(mut self, size: usize) -> Self {
+    pub fn with_cache_queue_size(mut self, size: usize) -> Self {
         self.cache_queue_size = size;
 
         self

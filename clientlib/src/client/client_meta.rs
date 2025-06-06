@@ -82,6 +82,6 @@ impl PartialEq for ClientMeta {
         self.registered == other.registered
             && self.access_level == other.access_level
             && self.subscriptions == other.subscriptions
-            && self.created_at == self.created_at
+            && self.created_at == other.created_at
     }
 }

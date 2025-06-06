@@ -47,6 +47,7 @@ pub struct ClientHandler {
     tx_channel: mpsc::Sender<String>,
 }
 
+// TODO: Logic for last_update
 impl ClientHandler {
     pub fn new(db_conn: MySqlPool, cache: Arc<Cache>, sender: mpsc::Sender<String>) -> Self {
         ClientHandler {
@@ -125,7 +126,7 @@ impl ClientHandler {
                 if !metadata.registered {
                     metadata.registered = true;
                     let now = Some(Utc::now());
-                    metadata.last_access = now.clone();
+                    metadata.last_access = now;
                     metadata.last_update = now;
                     self.db_mark_as_registered(client_id).await?;
                 } else {
@@ -134,11 +135,14 @@ impl ClientHandler {
             }
             None => {
                 self.db_register_client(client_id, false).await?;
-                let mut dummy_meta = ClientMeta::default();
-                dummy_meta.registered = true;
                 let now = Some(Utc::now());
-                dummy_meta.last_access = now.clone();
-                dummy_meta.last_update = now;
+                let dummy_meta = ClientMeta {
+                    registered: true,
+                    last_access: now,
+                    last_update: now,
+                    ..Default::default()
+                };
+
                 self.cache.data.insert(client_id.0, dummy_meta).await;
                 info!("User {} registered in the DB", client_id.0);
             }
