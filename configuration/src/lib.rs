@@ -45,6 +45,8 @@ pub struct Settings {
     pub data_path: String,
     /// Database backend settings.
     pub database: DatabaseSettings,
+    /// Clientlib settings.
+    pub clientlib: ClientlibSettings,
 }
 
 /// Settings of the ShortBot application.
@@ -96,6 +98,14 @@ pub struct DatabaseSettings {
     pub mariadb_password: SecretString,
     pub mariadb_dbname: String,
     pub mariadb_ssl_mode: Option<bool>,
+}
+
+/// Settings for clientlib.
+#[derive(Debug, Deserialize)]
+pub struct ClientlibSettings {
+    pub enable_cache: bool,
+    pub cache_queue_size: u16,
+    pub cache_shards: u16,
 }
 
 impl DatabaseSettings {

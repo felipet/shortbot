@@ -29,3 +29,8 @@ mariadb_user = "root"
 mariadb_password = "password"
 mariadb_dbname = "shortbot"
 mariadb_ssl_mode = false
+
+[clientlib]
+enable_cache = true
+cache_queue_size = 10
+cache_shards = 4
