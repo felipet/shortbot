@@ -10,7 +10,7 @@ description = "A Telegram bot for checking short positions against shares listed
 config = { version = "0.15.6", features = ["yaml"] }
 secrecy = { version = "0.10.3", features = ["serde"] }
 serde = { version = "1.0.217", features = ["serde_derive"] }
-teloxide = { version = "0.13.0", features = ["macros", "ctrlc_handler", "webhooks-axum"] }
+teloxide = { version = "0.15.0", features = ["macros", "ctrlc_handler", "webhooks-axum"] }
 tokio = {version = "1.8", features = ["rt-multi-thread", "macros", "sync"]}
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = "0.3.0"
