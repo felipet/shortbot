@@ -48,5 +48,34 @@ can be used:
 $ git push --no-verify <remote> <branch>
 ```
 
+## Running the bot
+
+Since the bot started to use a **websocket** to communicate with Telegram's Bot API, it is no longer possible to
+simply run the bot locally for development.
+
+A local web server is deployed using `Axum`. If the application is deployed without a proxy, opening the chosen
+port in the firewall and having a registered domain name would be the only requirements.
+
+### Using a proxy
+
+The current deployment of the application includes a proxy server in between that handles all the requests to
+the chosen domain name (Apache).
+
+To enable development deployments, add the following to a new or existing site of the Apache server:
+
+```
+# Proxy for the testing webhook with shortbot
+ProxyPassReverse /<path> http://127.0.0.1:<port>/<path>
+ProxyPass /<path> http://127.0.0.1:<port>/<path>
+```
+
+Then, a port forwarding to the development computer from the server, which is hosting the Apache server,
+might be needed. If so, simply use `ssh -R` this way:
+
+```bash
+$ ssh -N -R <server IP>:<port>:localhost:<port> <user>@<server IP>
+```
+
+
 [ibex35]: https://www.bolsasymercados.es/bme-exchange/es/Mercados-y-Cotizaciones/Acciones/Mercado-Continuo/Precios/ibex-35-ES0SI0000005
 [cnmv]: https://www.cnmv.es/portal/home.aspx
