@@ -13,7 +13,7 @@ sqlx = { version = "0.8.6", features = [ "runtime-tokio", "mysql", "macros", "ch
 secrecy = { version = "0.10.3", features = ["serde"] }
 uuid = { version = "1.13.1", features = ["v4"] }
 tokio = {version = "1.8", features = ["rt", "macros", "sync"]}
-teloxide = { version = "0.15.0" }
+teloxide = { version = "0.16.0" }
 thiserror = "2.0.12"
 whirlwind = "0.1.1"
 chrono = { version = "0.4.38", features = ["alloc", "std", "clock"] }
