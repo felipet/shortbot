@@ -15,11 +15,7 @@
 //! Main file of the Shortbot
 
 use bot_core::{CommandEng, CommandSpa, clientlib_startup};
-use bot_core::{
-    State, handlers,
-    telemetry::{get_subscriber, init_subscriber},
-};
-
+use bot_core::{State, handlers, telemetry::configure_tracing};
 use configuration::Settings;
 use secrecy::ExposeSecret;
 use std::{net::SocketAddr, str::FromStr, sync::Arc};
@@ -36,8 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let settings = Settings::new().expect("Failed to parse configuration files.");
 
     // Initialize the tracing subsystem.
-    let subscriber = get_subscriber(settings.tracing_level.as_str());
-    init_subscriber(subscriber);
+    configure_tracing(settings.tracing_level.as_str());
 
     // Initialize the short cache.
     let short_cache = bot_core::ShortCache::connect_backend(&settings.database).await?;

@@ -12,27 +12,30 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-use tracing::{
-    Level,
-    subscriber::{Subscriber, set_global_default},
-};
-use tracing_subscriber::FmtSubscriber;
+use tracing::{Level, level_filters::LevelFilter};
+use tracing_subscriber::{Layer, filter::Targets, fmt, prelude::*};
 
-pub fn get_subscriber(tracing_level: &str) -> impl Subscriber + Send + Sync {
+pub fn configure_tracing(tracing_level: &str) {
     // Set the tracing logic.
-    let tracing_level = match tracing_level {
-        "info" => Level::INFO,
-        "debug" => Level::DEBUG,
-        "warn" => Level::WARN,
-        "error" => Level::ERROR,
-        _ => Level::TRACE,
+    let (tracing_level, tracing_levelfilter) = match tracing_level {
+        "info" => (Level::INFO, LevelFilter::INFO),
+        "debug" => (Level::DEBUG, LevelFilter::DEBUG),
+        "warn" => (Level::WARN, LevelFilter::WARN),
+        "error" => (Level::ERROR, LevelFilter::ERROR),
+        _ => (Level::TRACE, LevelFilter::TRACE),
     };
 
-    FmtSubscriber::builder()
-        .with_max_level(tracing_level)
-        .finish()
-}
-
-pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
-    set_global_default(subscriber).expect("Failed to set subscriber.");
+    tracing_subscriber::registry()
+        .with(
+            fmt::layer()
+                .with_ansi(false)
+                .with_target(true)
+                .with_filter(tracing_levelfilter),
+        )
+        .with(
+            Targets::new()
+                .with_target("bot_core", tracing_level)
+                .with_target("clientlib", tracing_level),
+        )
+        .init();
 }
