@@ -82,10 +82,8 @@
 //! After that, the whole workspace can be built using `cargo build`, but we need to run SQLx in offline mode:
 //! `export SQLX_OFFLINE=true`.
 
-use sqlx::MySqlPool;
-use std::{str::FromStr, sync::Arc};
+use std::str::FromStr;
 use thiserror::Error;
-use tokio::sync::mpsc::{self, Receiver, Sender};
 
 /// Client management module.
 mod client {
@@ -96,15 +94,6 @@ mod client {
 
 pub use client::client_meta::ClientMeta;
 pub use client::{client_handler::ClientHandler, subscriptions::Subscriptions};
-
-/// Cache management module.
-mod cache {
-    pub mod cache_handler;
-    pub mod cache_type;
-}
-
-pub use cache::cache_handler::CacheHandler;
-pub use cache::cache_type::Cache;
 
 /// The backend is not expected to run using too many threads. Keep this low unless
 /// the number of threads escalates enough.
@@ -145,85 +134,6 @@ pub enum ClientError {
     ClientLimitReached,
     #[error("Cache incongruence")]
     CacheIncongruence,
-}
-
-/// Builder object that construct all the objects related to the bot client's DB & cache.
-pub struct ClientObjectsBuilder {
-    db_conn: MySqlPool,
-    cache: Option<Cache>,
-    shards: Option<usize>,
-    channel_size: Option<usize>,
-    channel: Option<(Sender<String>, Receiver<String>)>,
-    cache_queue_size: usize,
-}
-
-impl ClientObjectsBuilder {
-    pub fn new(db_conn: MySqlPool) -> Self {
-        ClientObjectsBuilder {
-            db_conn,
-            cache: None,
-            shards: None,
-            channel_size: None,
-            channel: None,
-            cache_queue_size: DEFAULT_CACHE_TASK_QUEUE,
-        }
-    }
-
-    pub fn build(self) -> (CacheHandler, ClientHandler) {
-        // Build an MPSC channel when not provided.
-        let (tx_channel, rx_channel) = self.channel.unwrap_or(mpsc::channel(
-            self.channel_size.unwrap_or(DEFAULT_BUFFER_SIZE),
-        ));
-
-        // Build a Cache when not provided.
-        let cache = Arc::new(
-            self.cache
-                .unwrap_or(Cache::new(self.shards.unwrap_or(DEFAULT_SHARDS))),
-        );
-
-        // Create an instance of ClientHandler.
-        let client_handler = ClientHandler::new(self.db_conn.clone(), cache.clone(), tx_channel);
-
-        // Create an instance of CacheHandler.
-        let cache_handler = CacheHandler::new(
-            self.db_conn.clone(),
-            rx_channel,
-            cache,
-            self.cache_queue_size,
-        );
-
-        (cache_handler, client_handler)
-    }
-
-    pub fn with_cache(mut self, cache: Cache) -> Self {
-        self.cache = Some(cache);
-
-        self
-    }
-
-    pub fn with_cache_queue_size(mut self, size: usize) -> Self {
-        self.cache_queue_size = size;
-
-        self
-    }
-
-    pub fn with_shards(mut self, shards: usize) -> Self {
-        self.shards = Some(shards);
-
-        self
-    }
-
-    pub fn with_channel(mut self, sender: Sender<String>, receiver: Receiver<String>) -> Self {
-        self.channel = Some((sender, receiver));
-
-        self
-    }
-
-    pub fn with_channel_size(mut self, size: usize) -> Self {
-        self.channel_size = Some(size);
-
-        self
-    }
 }
 
 impl From<sqlx::Error> for ClientError {
