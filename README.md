@@ -1,5 +1,5 @@
 <div align=center>
-<img src="bot-core/data/img/ShortBot_logo_main.png" width=100px style="border-radius: 50%"/>
+<img src="data/img/ShortBot_logo_main.png" width=100px style="border-radius: 50%"/>
 <h1><a href="https://t.me/ibexshortbot">@IbexShortBot</a></h1>
 </div>
 
