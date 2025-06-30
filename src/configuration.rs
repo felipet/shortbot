@@ -20,14 +20,13 @@
 //! objects that automate reading the configuration from files or environment
 //! variables and parsing them to Rust's native types.
 //!
-//! Some settings must be overrided by environment variables, for example, the
+//! Some settings must be overridden by environment variables, for example, the
 //! API token for the Telegram Bot client. All the environment variables that
 //! are meant to be used within this module shall use the prefix _SHORTBOT_.
 
 use config::{Config, ConfigError, Environment, File};
 use secrecy::{ExposeSecret, SecretString};
 use serde_derive::Deserialize;
-use sqlx::mysql::{MySqlConnectOptions, MySqlSslMode};
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 
 /// Name of the directory in which configuration files will be stored.
@@ -45,8 +44,6 @@ pub struct Settings {
     pub data_path: String,
     /// Database backend settings.
     pub database: DatabaseSettings,
-    /// Clientlib settings.
-    pub clientlib: ClientlibSettings,
 }
 
 /// Settings of the ShortBot application.
@@ -92,20 +89,6 @@ pub struct DatabaseSettings {
     pub questdb_port: u16,
     pub questdb_user: String,
     pub questdb_password: SecretString,
-    pub mariadb_host: String,
-    pub mariadb_port: u16,
-    pub mariadb_user: String,
-    pub mariadb_password: SecretString,
-    pub mariadb_dbname: String,
-    pub mariadb_ssl_mode: Option<bool>,
-}
-
-/// Settings for clientlib.
-#[derive(Debug, Deserialize)]
-pub struct ClientlibSettings {
-    pub enable_cache: bool,
-    pub cache_queue_size: u16,
-    pub cache_shards: u16,
 }
 
 impl DatabaseSettings {
@@ -117,22 +100,4 @@ impl DatabaseSettings {
             .port(self.questdb_port)
             .ssl_mode(PgSslMode::Prefer)
     }
-}
-
-pub fn build_db_conn_without_db(config: &DatabaseSettings) -> MySqlConnectOptions {
-    MySqlConnectOptions::new()
-        .host(&config.mariadb_host)
-        .port(config.mariadb_port)
-        .username(&config.mariadb_user)
-        .password(config.mariadb_password.expose_secret())
-        .charset("utf8mb4")
-        .ssl_mode(if config.mariadb_ssl_mode.unwrap_or_default() {
-            MySqlSslMode::Required
-        } else {
-            MySqlSslMode::Preferred
-        })
-}
-
-pub fn build_db_conn_with_db(config: &DatabaseSettings) -> MySqlConnectOptions {
-    build_db_conn_without_db(config).database(&config.mariadb_dbname)
 }

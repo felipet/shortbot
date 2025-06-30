@@ -19,6 +19,7 @@ use teloxide::{
     utils::command::BotCommands,
 };
 
+pub mod configuration;
 pub mod errors;
 pub mod shortcache;
 pub mod telemetry;
@@ -170,6 +171,9 @@ pub mod users {
     //!
     //! After that, the whole workspace can be built using `cargo build`, but we need to run SQLx in offline mode:
     //! `export SQLX_OFFLINE=true`.
+
+    use std::str::FromStr;
+    use thiserror::Error;
 
     /// This enum represents the access level of a bot client.
     ///

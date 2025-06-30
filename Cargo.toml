@@ -25,3 +25,4 @@ data_harvest = "0.2.1"
 uuid = { version = "1.13.1", features = ["v4"] }
 chrono = { version = "0.4.38", features = ["alloc", "std", "clock"] }
 axum = "0.7.9"
+serde_derive = "1.0.219"
