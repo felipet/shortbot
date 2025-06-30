@@ -119,8 +119,7 @@ impl TryFrom<&IbexCompanyBd> for IbexCompany {
             Some(name) => name,
             None => {
                 return Err(DbError::MissingStockInfo(format!(
-                    "Missing name: {:?}",
-                    value
+                    "Missing name: {value:?}"
                 )));
             }
         };
@@ -130,8 +129,7 @@ impl TryFrom<&IbexCompanyBd> for IbexCompany {
             Some(ticker) => ticker,
             None => {
                 return Err(DbError::MissingStockInfo(format!(
-                    "Missing ticker: {:?}",
-                    value
+                    "Missing ticker: {value:?}"
                 )));
             }
         };
@@ -140,8 +138,7 @@ impl TryFrom<&IbexCompanyBd> for IbexCompany {
             Some(isin) => isin,
             None => {
                 return Err(DbError::MissingStockInfo(format!(
-                    "Missing ISIN: {:?}",
-                    value
+                    "Missing ISIN: {value:?}"
                 )));
             }
         };
