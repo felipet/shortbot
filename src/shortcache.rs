@@ -14,9 +14,8 @@
 
 //! Module with the logic for the short positions cache.
 
-use crate::errors::DbError;
+use crate::{configuration::DatabaseSettings, errors::DbError};
 use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone, Utc};
-use configuration::DatabaseSettings;
 use data_harvest::domain::{AliveShortPositions, ShortPosition};
 use finance_ibex::IbexCompany;
 use sqlx::{PgPool, postgres::PgPoolOptions};
@@ -120,8 +119,7 @@ impl TryFrom<&IbexCompanyBd> for IbexCompany {
             Some(name) => name,
             None => {
                 return Err(DbError::MissingStockInfo(format!(
-                    "Missing name: {:?}",
-                    value
+                    "Missing name: {value:?}"
                 )));
             }
         };
@@ -131,8 +129,7 @@ impl TryFrom<&IbexCompanyBd> for IbexCompany {
             Some(ticker) => ticker,
             None => {
                 return Err(DbError::MissingStockInfo(format!(
-                    "Missing ticker: {:?}",
-                    value
+                    "Missing ticker: {value:?}"
                 )));
             }
         };
@@ -141,8 +138,7 @@ impl TryFrom<&IbexCompanyBd> for IbexCompany {
             Some(isin) => isin,
             None => {
                 return Err(DbError::MissingStockInfo(format!(
-                    "Missing ISIN: {:?}",
-                    value
+                    "Missing ISIN: {value:?}"
                 )));
             }
         };

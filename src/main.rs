@@ -14,17 +14,17 @@
 
 //! Main file of the Shortbot
 
-use bot_core::{CommandEng, CommandSpa, clientlib_startup};
-use bot_core::{State, handlers, telemetry::configure_tracing};
-use configuration::Settings;
 use secrecy::ExposeSecret;
+use shortbot::{
+    CommandEng, CommandSpa, State, configuration::Settings, handlers, telemetry::configure_tracing,
+};
 use std::{net::SocketAddr, str::FromStr, sync::Arc};
 use teloxide::{
     dispatching::dialogue::InMemStorage, payloads::SetMyCommandsSetters, prelude::*,
     update_listeners::webhooks, utils::command::BotCommands,
 };
-use tokio::{net::TcpListener, signal};
-use tracing::{debug, error, info};
+use tokio::net::TcpListener;
+use tracing::{debug, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -35,31 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     configure_tracing(settings.tracing_level.as_str());
 
     // Initialize the short cache.
-    let short_cache = bot_core::ShortCache::connect_backend(&settings.database).await?;
-
-    let (tx, rx) = tokio::sync::mpsc::channel(10);
-    let (mut cache_handler, client_handler) =
-        clientlib_startup(&settings, (tx.clone(), rx)).await?;
-
-    let _ = tokio::spawn(async move {
-        let _ = cache_handler.start().await;
-        info!("Cache handler closed");
-    });
-
-    let tx_close = tx.clone();
-
-    tokio::spawn(async move {
-        match signal::ctrl_c().await {
-            Ok(()) => {
-                info!("Signal ctrl-c received!");
-                let _ = tx_close.send("stop".to_owned()).await;
-                info!("Stop signal sent to the cache handler");
-            }
-            Err(err) => {
-                error!("Unable to listen for shutdown signal: {}", err);
-            }
-        }
-    });
+    let short_cache = shortbot::ShortCache::connect_backend(&settings.database).await?;
 
     // Build an Axum HTTP server.
     let main_router: axum::Router<()> =
@@ -120,7 +96,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Dispatcher::builder(bot, handlers::schema())
         .dependencies(dptree::deps![
             Arc::new(short_cache),
-            Arc::new(client_handler),
             InMemStorage::<State>::new()
         ])
         .enable_ctrlc_handler()
