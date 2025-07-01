@@ -24,6 +24,7 @@ pub mod errors;
 pub mod shortcache;
 pub mod telemetry;
 
+pub use errors::{DbError, UserError};
 pub use shortcache::ShortCache;
 
 // Bring all the endpoints to the main context.
@@ -172,41 +173,29 @@ pub mod users {
     //! After that, the whole workspace can be built using `cargo build`, but we need to run SQLx in offline mode:
     //! `export SQLX_OFFLINE=true`.
 
+    use serde::{Deserialize, Serialize};
     use std::str::FromStr;
-    use thiserror::Error;
 
-    /// This enum represents the access level of a bot client.
+    pub mod subscriptions;
+    pub mod user_handler;
+    pub mod user_meta;
+
+    pub use subscriptions::Subscriptions;
+    pub use user_handler::UserHandler;
+    pub use user_meta::UserMeta;
+
+    /// This enum represents the access level of an user of the bot.
     ///
     /// # Description
     ///
-    /// The access level is used to determine the level of access to the bot's features for each client.
-    #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+    /// The access level is used to determine the level of access to the bot's features for each user.
+    #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
     pub enum BotAccess {
         #[default]
         Free,
         Limited,
         Unlimited,
         Admin,
-    }
-
-    #[derive(Error, Debug)]
-    pub enum ClientError {
-        #[error("Wrong subscription string format")]
-        WrongSubscriptionString(String),
-        #[error("Unknown error from the DB server")]
-        UnknownDbError(String),
-        #[error("The user ID is not registered")]
-        ClientNotRegistered,
-        #[error("Subscription limit reached")]
-        ClientLimitReached,
-        #[error("Cache incongruence")]
-        CacheIncongruence,
-    }
-
-    impl From<sqlx::Error> for ClientError {
-        fn from(value: sqlx::Error) -> Self {
-            ClientError::UnknownDbError(value.to_string())
-        }
     }
 
     impl FromStr for BotAccess {
