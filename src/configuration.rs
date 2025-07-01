@@ -25,9 +25,11 @@
 //! are meant to be used within this module shall use the prefix _SHORTBOT_.
 
 use config::{Config, ConfigError, Environment, File};
+use redis::AsyncConnectionConfig;
 use secrecy::{ExposeSecret, SecretString};
 use serde_derive::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
+use std::time::Duration;
 
 /// Name of the directory in which configuration files will be stored.
 const CONF_DIR: &str = "config";
@@ -44,6 +46,8 @@ pub struct Settings {
     pub data_path: String,
     /// Database backend settings.
     pub database: DatabaseSettings,
+    /// Valkey backend to hold user's data.
+    pub users_db: ValkeySettings,
 }
 
 /// Settings of the ShortBot application.
@@ -66,15 +70,14 @@ pub struct ApplicationSettings {
 impl Settings {
     pub fn new() -> Result<Self, ConfigError> {
         // Build the full path of the configuration directory.
-        let mut base_path =
+        let base_path =
             std::env::current_dir().expect("Failed to determine the current directory.");
-        // Needed due to the workspace organisation of the project.
-        base_path.push("../");
         let cfg_dir = base_path.join(CONF_DIR);
 
         let settings = Config::builder()
             // Start of  by merging in the "default" configuration file.
             .add_source(File::from(cfg_dir.join("base")).required(true))
+            .add_source(File::from(cfg_dir.join("local")).required(false))
             .add_source(Environment::with_prefix("shortbot").separator("__"))
             .build()?;
 
@@ -99,5 +102,29 @@ impl DatabaseSettings {
             .password(self.questdb_password.expose_secret())
             .port(self.questdb_port)
             .ssl_mode(PgSslMode::Prefer)
+    }
+}
+
+const VALKEY_CONN_TIMEOUT: u64 = 1;
+const VALKEY_RESP_TIMEOUT: u64 = 1;
+
+/// Settings for Valkey
+#[derive(Debug, Deserialize)]
+pub struct ValkeySettings {
+    pub valkey_host: String,
+    pub valkey_port: u16,
+    pub valkey_conn_timeout: Option<u64>,
+    pub valkey_resp_timeout: Option<u64>,
+}
+
+impl ValkeySettings {
+    pub fn connection_config(&self) -> AsyncConnectionConfig {
+        AsyncConnectionConfig::new()
+            .set_connection_timeout(Duration::from_secs(
+                self.valkey_conn_timeout.unwrap_or(VALKEY_CONN_TIMEOUT),
+            ))
+            .set_response_timeout(Duration::from_secs(
+                self.valkey_resp_timeout.unwrap_or(VALKEY_RESP_TIMEOUT),
+            ))
     }
 }
