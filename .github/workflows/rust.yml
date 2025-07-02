@@ -19,7 +19,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  SQLX_FEATURES: "postgresql"
+  SQLX_FEATURES: "postgres"
   SQLX_VERSION: "0.8.6"
 
 jobs:
@@ -73,6 +73,10 @@ jobs:
         uses: QuadStingray/questdb-github-action@v1.0.0
         with:
           questdb-port-postgresql: 8812
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.7.0
+        with:
+          redis-version: 7
       - name: Install SQLx-cli
         run:
             cargo install sqlx-cli
