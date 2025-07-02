@@ -30,7 +30,6 @@ mariadb_password = "password"
 mariadb_dbname = "shortbot"
 mariadb_ssl_mode = false
 
-[clientlib]
-enable_cache = true
-cache_queue_size = 10
-cache_shards = 4
+[users_db]
+valkey_host = "127.0.0.1"
+valkey_port = 6379
