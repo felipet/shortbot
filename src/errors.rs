@@ -23,4 +23,18 @@ pub enum DbError {
     Unknown(String),
     #[error("unknown error from the QuestDB dataserver")]
     UnknownQdb(String),
+    #[error("error from Valkey DB server")]
+    UnknownValkey(String),
+}
+
+#[derive(Error, Debug)]
+pub enum UserError {
+    #[error("Wrong subscription string format")]
+    WrongSubscriptionString(String),
+    #[error("The user ID is not registered")]
+    ClientNotRegistered,
+    #[error("Subscription limit reached")]
+    ClientLimitReached,
+    #[error("serialisation error")]
+    SerialisationError(String),
 }

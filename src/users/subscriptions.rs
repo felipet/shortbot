@@ -26,12 +26,13 @@
 //! The main goal of this `struct` is the abstraction of what a subscription is. This way, future changes won't break
 //! clients of this module.
 
-use crate::ClientError;
+use crate::UserError;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, iter::IntoIterator};
 
 const CHARS_PER_TICKER: u8 = 4;
 
-#[derive(Clone, Default, Debug, PartialEq, Eq)]
+#[derive(Clone, Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Subscriptions {
     tickers: HashSet<String>,
 }
@@ -135,14 +136,14 @@ impl<'a> IntoIterator for &'a Subscriptions {
 }
 
 impl TryFrom<&str> for Subscriptions {
-    type Error = ClientError;
+    type Error = UserError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let tickers = value
             .split(";")
             .map(|c| {
                 if c.len() > CHARS_PER_TICKER as usize {
-                    Err(ClientError::WrongSubscriptionString(value.to_owned()))
+                    Err(UserError::WrongSubscriptionString(value.to_owned()))
                 } else {
                     Ok(c.to_owned())
                 }
@@ -154,7 +155,7 @@ impl TryFrom<&str> for Subscriptions {
 }
 
 impl TryFrom<String> for Subscriptions {
-    type Error = ClientError;
+    type Error = UserError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Self::try_from(value.as_str())
@@ -162,7 +163,7 @@ impl TryFrom<String> for Subscriptions {
 }
 
 impl TryFrom<&String> for Subscriptions {
-    type Error = ClientError;
+    type Error = UserError;
 
     fn try_from(value: &String) -> Result<Self, Self::Error> {
         Self::try_from(value.as_str())
@@ -170,14 +171,14 @@ impl TryFrom<&String> for Subscriptions {
 }
 
 impl TryFrom<&[&str]> for Subscriptions {
-    type Error = ClientError;
+    type Error = UserError;
 
     fn try_from(value: &[&str]) -> Result<Self, Self::Error> {
         let tickers = value
             .iter()
             .map(|c| {
                 if c.len() > CHARS_PER_TICKER as usize {
-                    Err(ClientError::WrongSubscriptionString(c.to_string()))
+                    Err(UserError::WrongSubscriptionString(c.to_string()))
                 } else {
                     Ok(c.to_string())
                 }

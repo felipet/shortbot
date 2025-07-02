@@ -32,10 +32,6 @@ pub fn configure_tracing(tracing_level: &str) {
                 .with_target(true)
                 .with_filter(tracing_levelfilter),
         )
-        .with(
-            Targets::new()
-                .with_target("bot_core", tracing_level)
-                .with_target("clientlib", tracing_level),
-        )
+        .with(Targets::new().with_target("shortbot", tracing_level))
         .init();
 }
