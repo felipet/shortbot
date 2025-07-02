@@ -11,20 +11,13 @@
 //    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //    See the License for the specific language governing permissions and
 
-//! Module that includes all the logic related to the management of the client's metadata.
+//! Module that includes all the logic related to the management of the user's metadata.
 //!
 //! # Description
 //!
-//! The `struct` [ClientHandler] is the API for external modules that aim to request or modify data related to
-//! clients of the bot. It makes transparent the usage of the cache, so external modules don't need to know whether
-//! the information is available in the cache or not.
-//!
-//! The [ClientHandler] main goal is to serve other modules as handler to access a client's information with a
-//! minimum latency (so the bot keeps responsive).
-//!
-//! It won't take part of cache maintenance tasks to avoid reducing the performance of the handler. That task,
-//! and other related to the handling of the cache are implemented in the module [crate::cache]. [ClientHandler]
-//! only signals the cache handler when a refresh is needed.
+//! The `struct` [UserHandler] is the API for external modules that aim to request or modify data related to
+//! users of the bot. That metadata is stored in an external cache, which is hidden from the rest of the modules
+//! of Shortbot.
 
 use crate::{
     DbError,
@@ -35,9 +28,8 @@ use crate::{
 use chrono::Utc;
 use redis::{AsyncCommands, aio::MultiplexedConnection};
 use std::error::Error;
-//use std::time::Duration;
 use teloxide::types::UserId;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 /// Handler for the management of the user's metadata.
 #[derive(Clone)]
@@ -47,8 +39,8 @@ pub struct UserHandler {
     db_settings: redis::AsyncConnectionConfig,
 }
 
-// TODO: Logic for last_update
 impl UserHandler {
+    /// Private static method that retrieves a value from the dict and deserializes it.
     async fn get(
         con: &mut MultiplexedConnection,
         user_id: &UserId,
@@ -60,6 +52,7 @@ impl UserHandler {
         Ok(meta)
     }
 
+    /// Private static method that inserts a new value into the dict and serializes it.
     async fn set(
         con: &mut MultiplexedConnection,
         user_id: &UserId,
@@ -73,6 +66,7 @@ impl UserHandler {
         Ok(())
     }
 
+    /// The constructor builds a new Redis client from the global settings.
     pub async fn new(settings: &ValkeySettings) -> Result<Self, DbError> {
         Ok(UserHandler {
             db_client: redis::Client::open(format!(
@@ -106,6 +100,7 @@ impl UserHandler {
 
             Ok(meta.access_level)
         } else {
+            debug!("Access level requested for a non-registered user");
             Ok(BotAccess::Free)
         }
     }
@@ -135,16 +130,12 @@ impl UserHandler {
             UserHandler::set(&mut con, user_id, meta).await?;
         }
 
+        debug!("Access time refreshed for user: {user_id}");
+
         Ok(())
     }
 
-    /// Method that returns whether an user is registered as a _hard-client_.
-    ///
-    /// # Description
-    ///
-    /// This method checks if the given client ID was registered previously in the DB. When a new
-    /// client is detected, this method calls [ClientHandler::db_register_client] and proceeds to
-    /// register the user as a _soft-client_.
+    /// Method that returns if a Telegram user is registered as a bot's user.
     pub async fn is_registered(
         &self,
         user_id: &UserId,
@@ -160,13 +151,7 @@ impl UserHandler {
             .map_err(|e| DbError::UnknownValkey(e.to_string()))?)
     }
 
-    /// Method that registers an user as a _hard-client_ client of the bot.
-    ///
-    /// # Description
-    ///
-    /// The method checks if the user was auto-registered before proceeding to the register process. In that case,
-    /// the _auto_ flag is set to `true` and the access time is updated.
-    /// Otherwise, a full register process is triggered.
+    /// Method that registers an Telegram user as an user of the bot.
     pub async fn register_user(
         &self,
         user_id: &UserId,
@@ -204,11 +189,12 @@ impl UserHandler {
 
             Ok(meta.subscriptions)
         } else {
+            debug!("Attempt to retrieve subscriptions from a non-registered user");
             Ok(None)
         }
     }
 
-    /// Method that adds tickers to the subscription list of the client.
+    /// Method that adds tickers to the subscription list of the user.
     pub async fn add_subscriptions(
         &self,
         user_id: &UserId,
@@ -241,53 +227,58 @@ impl UserHandler {
     /// Method that removes tickers from the subscription list of the client.
     pub async fn remove_subscriptions(
         &self,
-        _user_id: &UserId,
-        _subscriptions: Subscriptions,
+        user_id: &UserId,
+        subscriptions: Subscriptions,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        // match self.cache.data.get_mut(&user_id.0).await {
-        //     Some(mut metadata) => {
-        //         if metadata.subscriptions.is_none() {
-        //             warn!("Attempt to remove subscriptions from a client non-registered");
-        //         } else {
-        //             let subs = metadata.subscriptions.as_mut().unwrap();
-        //             *subs -= subscriptions;
+        let mut con = self
+            .db_client
+            .get_multiplexed_async_connection_with_config(&self.db_settings)
+            .await?;
 
-        //             if subs.is_empty() {
-        //                 metadata.subscriptions = None;
-        //             }
+        let is_registered = self.is_registered(user_id).await?;
 
-        //             self.notify_cache_handler(user_id).await;
-        //             info!("The client {} removed subscriptions", user_id.0);
-        //         }
-        //     }
-        //     None => {
-        //         warn!("Attempt to remove subscriptions from a client non-registered");
-        //         return Err(DbError::ClientNotRegistered);
-        //     }
-        // };
+        if is_registered {
+            let mut meta = UserHandler::get(&mut con, user_id).await?;
 
-        // Ok(())
-        unimplemented!("Remove subscriptions API not implemented")
+            if meta.subscriptions.is_none() {
+                warn!("Attempt to remove subscriptions from a non-registered user");
+            } else {
+                let subs = meta.subscriptions.as_mut().unwrap();
+                *subs -= subscriptions;
+
+                if subs.is_empty() {
+                    meta.subscriptions = None;
+                }
+
+                UserHandler::set(&mut con, user_id, meta).await?;
+            }
+        }
+
+        Ok(())
     }
 
     /// Method that modifies the access level of a client.
     pub async fn modify_access_level(
         &self,
-        _user_id: &UserId,
-        _access: BotAccess,
+        user_id: &UserId,
+        access: BotAccess,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        // match self.cache.data.get_mut(&user_id.0).await {
-        //     Some(mut meta) => {
-        //         meta.access_level = access;
-        //         self.notify_cache_handler(user_id).await;
-        //         Ok(())
-        //     }
-        //     None => {
-        //         warn!("The user ID is not registered as a client of the bot");
-        //         Err(UserError::ClientNotRegistered)
-        //     }
-        // }
-        unimplemented!("Modify access level API not implemented")
+        let mut con = self
+            .db_client
+            .get_multiplexed_async_connection_with_config(&self.db_settings)
+            .await?;
+
+        let is_registered = self.is_registered(user_id).await?;
+
+        if is_registered {
+            let mut meta = UserHandler::get(&mut con, user_id).await?;
+            meta.access_level = access;
+            UserHandler::set(&mut con, user_id, meta).await?;
+        } else {
+            warn!("Attempt to modify access level of a non-registered user");
+        }
+
+        Ok(())
     }
 }
 
