@@ -17,14 +17,15 @@
 use secrecy::ExposeSecret;
 use shortbot::{
     CommandEng, CommandSpa, State, configuration::Settings, handlers, telemetry::configure_tracing,
+    users::UserHandler,
 };
-use std::{net::SocketAddr, str::FromStr, sync::Arc};
+use std::{net::SocketAddr, process::exit, str::FromStr, sync::Arc};
 use teloxide::{
     dispatching::dialogue::InMemStorage, payloads::SetMyCommandsSetters, prelude::*,
     update_listeners::webhooks, utils::command::BotCommands,
 };
 use tokio::net::TcpListener;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -36,6 +37,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize the short cache.
     let short_cache = shortbot::ShortCache::connect_backend(&settings.database).await?;
+
+    // Set up the user's metadata DB.
+    let user_handler = match UserHandler::new(&settings.users_db).await {
+        Ok(uh) => uh,
+        Err(e) => {
+            error!("An error occurred while attempting to connect to the user's DB:\n{e}");
+            exit(69)
+        }
+    };
 
     // Build an Axum HTTP server.
     let main_router: axum::Router<()> =
@@ -96,6 +106,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Dispatcher::builder(bot, handlers::schema())
         .dependencies(dptree::deps![
             Arc::new(short_cache),
+            Arc::new(user_handler),
             InMemStorage::<State>::new()
         ])
         .enable_ctrlc_handler()
