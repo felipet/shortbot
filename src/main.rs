@@ -111,10 +111,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ])
         .enable_ctrlc_handler()
         .build()
-        .dispatch_with_listener(
-            listener,
-            LoggingErrorHandler::with_custom_text("Teloxide-Log"),
-        )
+        .dispatch_with_listener(listener, LoggingErrorHandler::with_custom_text("shortbot"))
         .await;
 
     info!("Gracefully closed ShortBot server");
