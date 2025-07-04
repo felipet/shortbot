@@ -36,7 +36,8 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
             .branch(case![CommandEng::Start].endpoint(start))
             .branch(case![CommandEng::Help].endpoint(help))
             .branch(case![CommandEng::Short].endpoint(list_stocks))
-            .branch(case![CommandEng::Support].endpoint(support)),
+            .branch(case![CommandEng::Support].endpoint(support))
+            .branch(case![CommandEng::Settings].endpoint(settings)),
     );
 
     let command_handler_spa = teloxide::filter_command::<CommandSpa, _>().branch(
@@ -53,8 +54,9 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
         .branch(case![State::ListStocks].endpoint(list_stocks))
         .endpoint(default);
 
-    let query_handler =
-        Update::filter_callback_query().branch(case![State::ReceiveStock].endpoint(receive_stock));
+    let query_handler = Update::filter_callback_query()
+        .branch(case![State::ReceiveStock].endpoint(receive_stock))
+        .branch(case![State::Settings { msg_id }].endpoint(settings_callback));
 
     dialogue::enter::<Update, InMemStorage<State>, State, _>()
         .branch(message_handler)

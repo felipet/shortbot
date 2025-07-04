@@ -16,6 +16,7 @@
 
 use teloxide::{
     dispatching::dialogue::{Dialogue, InMemStorage},
+    types::MessageId,
     utils::command::BotCommands,
 };
 
@@ -33,6 +34,7 @@ pub mod endpoints {
     mod help;
     mod liststocks;
     mod receivestock;
+    mod settings;
     mod start;
     mod support;
 
@@ -40,6 +42,7 @@ pub mod endpoints {
     pub use help::help;
     pub use liststocks::list_stocks;
     pub use receivestock::receive_stock;
+    pub use settings::{settings, settings_callback};
     pub use start::start;
     pub use support::support;
 }
@@ -66,6 +69,9 @@ pub enum State {
     Start,
     ListStocks,
     ReceiveStock,
+    Settings {
+        msg_id: MessageId,
+    },
 }
 
 /// User commands in English language
@@ -83,6 +89,10 @@ pub enum CommandEng {
     Short,
     #[command(description = "Show support information")]
     Support,
+    #[command(description = "Show settings menu")]
+    Settings,
+    #[command(description = "Show available subscription plans")]
+    Plans,
 }
 
 /// User commands in Spanish language
@@ -100,6 +110,10 @@ pub enum CommandSpa {
     Short,
     #[command(description = "Mostrar información de apoyo")]
     Apoyo,
+    #[command(description = "Mostrar la configuración")]
+    Configuracion,
+    #[command(description = "Mostrar los planes de subscripción")]
+    Planes,
 }
 
 pub mod users {
