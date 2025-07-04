@@ -214,10 +214,10 @@ pub mod users {
     impl std::fmt::Display for BotAccess {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             match self {
-                BotAccess::Free => write!(f, "free"),
-                BotAccess::Limited => write!(f, "limited"),
-                BotAccess::Unlimited => write!(f, "unlimited"),
-                BotAccess::Admin => write!(f, "admin"),
+                BotAccess::Free => write!(f, "✍️ Free plan"),
+                BotAccess::Limited => write!(f, "👷 Limited plan"),
+                BotAccess::Unlimited => write!(f, "🥷 Unlimited plan"),
+                BotAccess::Admin => write!(f, "💪 Admin"),
             }
         }
     }
