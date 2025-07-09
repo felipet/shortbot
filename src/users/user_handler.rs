@@ -29,7 +29,7 @@ use chrono::Utc;
 use redis::{AsyncCommands, aio::MultiplexedConnection};
 use std::error::Error;
 use teloxide::types::UserId;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 /// Handler for the management of the user's metadata.
 #[derive(Clone)]
@@ -281,6 +281,24 @@ impl UserHandler {
         }
 
         Ok(())
+    }
+}
+
+impl Drop for UserHandler {
+    fn drop(&mut self) {
+        let mut con = match self.db_client.get_connection() {
+            Ok(con) => con,
+            Err(e) => {
+                error!("Failed to get a connection to Valkey server: {e}");
+                return;
+            }
+        };
+
+        info!("Sending BGSAVE command to Valkey server to force saving the cache");
+        match redis::cmd("BGSAVE").exec(&mut con) {
+            Ok(_) => info!("User's cache successfully saved"),
+            Err(e) => error!("Failed to save user's cache content: {e}"),
+        }
     }
 }
 
