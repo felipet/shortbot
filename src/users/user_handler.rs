@@ -23,7 +23,7 @@ use crate::{
     DbError,
     configuration::ValkeySettings,
     errors::UserError,
-    users::{BotAccess, Subscriptions, UserMeta},
+    users::{BotAccess, Subscriptions, UserConfig, UserMeta},
 };
 use chrono::Utc;
 use redis::{AsyncCommands, aio::MultiplexedConnection};
@@ -44,12 +44,14 @@ pub struct UserHandler {
 #[derive(Clone, Debug)]
 enum ContentType {
     Meta,
+    Config,
 }
 
 impl From<ContentType> for String {
     fn from(val: ContentType) -> Self {
         let str = match val {
             ContentType::Meta => "meta",
+            ContentType::Config => "config",
         };
 
         str.to_owned()
@@ -60,6 +62,7 @@ impl From<&ContentType> for String {
     fn from(val: &ContentType) -> Self {
         let str = match val {
             ContentType::Meta => "meta",
+            ContentType::Config => "config",
         };
 
         str.to_owned()
@@ -226,6 +229,19 @@ impl UserHandler {
             )
             .await?;
 
+        let json_config = serde_json::to_string(&UserConfig::default())
+            .map_err(|e| Box::new(UserError::SerialisationError(e.to_string())))?;
+
+        let _: () = con
+            .hset(
+                format!("shortbot:{}:{}", self.hash_id, user_id.0),
+                ContentType::Config.to_string(),
+                json_config,
+            )
+            .await?;
+
+        info!("New user {} registered", user_id.0);
+
         Ok(())
     }
 
@@ -341,6 +357,55 @@ impl UserHandler {
             self.set(&mut con, user_id, ContentType::Meta, meta).await?;
         } else {
             warn!("Attempt to modify access level of a non-registered user");
+        }
+
+        Ok(())
+    }
+
+    /// Method that retrieves the user's config.
+    pub async fn user_config(
+        &self,
+        user_id: &UserId,
+    ) -> Result<UserConfig, Box<dyn Error + Send + Sync>> {
+        let mut con = self
+            .db_client
+            .get_multiplexed_async_connection_with_config(&self.db_settings)
+            .await?;
+
+        let is_registered = self.is_registered(user_id).await?;
+
+        if is_registered {
+            let json_config = self.get(&mut con, user_id, ContentType::Config).await?;
+            let config: UserConfig = serde_json::from_str(&json_config)
+                .map_err(|e| UserError::SerialisationError(e.to_string()))?;
+
+            Ok(config)
+        } else {
+            warn!("Configuration requested for non-registered user");
+            Ok(UserConfig::default())
+        }
+    }
+
+    /// Method that stores the user's config.
+    pub async fn modify_user_config(
+        &self,
+        user_id: &UserId,
+        config: UserConfig,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let mut con = self
+            .db_client
+            .get_multiplexed_async_connection_with_config(&self.db_settings)
+            .await?;
+
+        let is_registered = self.is_registered(user_id).await?;
+
+        if is_registered {
+            let _: () = self
+                .set(&mut con, user_id, ContentType::Config, config)
+                .await?;
+            debug!("Settings modified for user {}", user_id.0);
+        } else {
+            error!("Can't modify the settings of a non-registered user");
         }
 
         Ok(())
@@ -477,6 +542,18 @@ mod tests {
             serde_json::from_str(&stored_meta).expect("Failed to deserialise");
 
         assert!(stored_meta.created_at - now < Duration::seconds(1));
+
+        let stored_config: String = con
+            .hget(
+                format!("shortbot:{}:{}", user_handler_fixture.hash_id, user_id.0),
+                ContentType::Config.to_string(),
+            )
+            .await
+            .expect("Failed to retrieve the fresh user");
+        let stored_config: UserConfig =
+            serde_json::from_str(&stored_config).expect("Failed to deserialise");
+
+        assert_eq!(stored_config, UserConfig::default());
     }
 
     /// TC: Insert a subscription for a registered client.
@@ -891,5 +968,43 @@ mod tests {
                 .expect("Failed to check if the user was registered"),
             "Expected the user to be registered"
         );
+    }
+
+    #[rstest]
+    #[awt]
+    #[tokio::test]
+    async fn handle_configuration(#[future] user_handler_fixture: UserHandler) {
+        Lazy::force(&TRACING);
+
+        let user_id = UserId { 0: random::<u64>() };
+
+        user_handler_fixture
+            .register_user(&user_id)
+            .await
+            .expect("Failed to register a new user");
+
+        let default_config = user_handler_fixture
+            .user_config(&user_id)
+            .await
+            .expect("Failed to retrive the user's config");
+
+        assert_eq!(default_config, UserConfig::default());
+
+        // Now, let's modify the settings and check it.
+        let mut mod_config = UserConfig::default();
+        mod_config.prefer_tickers = false;
+        mod_config.show_broadcast_msg = false;
+
+        user_handler_fixture
+            .modify_user_config(&user_id, mod_config.clone())
+            .await
+            .expect("Failed to modify user's config");
+
+        let read_config = user_handler_fixture
+            .user_config(&user_id)
+            .await
+            .expect("Failed to retrive the user's config");
+
+        assert_eq!(mod_config, read_config);
     }
 }
