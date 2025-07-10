@@ -27,6 +27,7 @@ use crate::{
 };
 use chrono::Utc;
 use redis::{AsyncCommands, aio::MultiplexedConnection};
+use serde::Serialize;
 use std::error::Error;
 use teloxide::types::UserId;
 use tracing::{debug, error, info, warn};
@@ -37,31 +38,76 @@ pub struct UserHandler {
     /// DB pool reference.
     db_client: redis::Client,
     db_settings: redis::AsyncConnectionConfig,
+    hash_id: u64,
+}
+
+#[derive(Clone, Debug)]
+enum ContentType {
+    Meta,
+}
+
+impl From<ContentType> for String {
+    fn from(val: ContentType) -> Self {
+        let str = match val {
+            ContentType::Meta => "meta",
+        };
+
+        str.to_owned()
+    }
+}
+
+impl From<&ContentType> for String {
+    fn from(val: &ContentType) -> Self {
+        let str = match val {
+            ContentType::Meta => "meta",
+        };
+
+        str.to_owned()
+    }
+}
+
+impl std::fmt::Display for ContentType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", Into::<String>::into(self))
+    }
 }
 
 impl UserHandler {
-    /// Private static method that retrieves a value from the dict and deserializes it.
+    /// Private method that retrieves a value from the dict and deserializes it.
     async fn get(
+        &self,
         con: &mut MultiplexedConnection,
         user_id: &UserId,
-    ) -> Result<UserMeta, Box<dyn Error + Sync + Send>> {
-        let json_meta: String = con.get(user_id.0).await?;
-        let meta: UserMeta = serde_json::from_str(&json_meta)
-            .map_err(|e| Box::new(UserError::SerialisationError(e.to_string())))?;
+        content_type: ContentType,
+    ) -> Result<String, Box<dyn Error + Sync + Send>> {
+        let json_data: String = con
+            .hget(
+                format!("shortbot:{}:{}", self.hash_id, user_id.0),
+                content_type.to_string(),
+            )
+            .await?;
 
-        Ok(meta)
+        Ok(json_data)
     }
 
-    /// Private static method that inserts a new value into the dict and serializes it.
-    async fn set(
+    /// Private method that inserts a new value into the dict and serializes it.
+    async fn set<T: Serialize>(
+        &self,
         con: &mut MultiplexedConnection,
         user_id: &UserId,
-        meta: UserMeta,
+        content_type: ContentType,
+        meta: T,
     ) -> Result<(), Box<dyn Error + Sync + Send>> {
         let json_meta = serde_json::to_string(&meta)
             .map_err(|e| Box::new(UserError::SerialisationError(e.to_string())))?;
 
-        let _: () = con.set(user_id.0, json_meta).await?;
+        let _: () = con
+            .hset(
+                format!("shortbot:{}:{}", self.hash_id, user_id.0),
+                content_type.to_string(),
+                json_meta,
+            )
+            .await?;
 
         Ok(())
     }
@@ -72,10 +118,11 @@ impl UserHandler {
             db_client: redis::Client::open(format!(
                 "redis://{}:{}/",
                 settings.valkey_host.clone(),
-                settings.valkey_port.clone()
+                settings.valkey_port.clone(),
             ))
             .map_err(|e| DbError::UnknownValkey(e.to_string()))?,
             db_settings: settings.connection_config(),
+            hash_id: settings.valkey_hash_id.unwrap_or(rand::random::<u64>()),
         })
     }
 
@@ -96,7 +143,9 @@ impl UserHandler {
         let is_registered = self.is_registered(user_id).await?;
 
         if is_registered {
-            let meta: UserMeta = UserHandler::get(&mut con, user_id).await?;
+            let json_meta: String = self.get(&mut con, user_id, ContentType::Meta).await?;
+            let meta: UserMeta = serde_json::from_str(&json_meta)
+                .map_err(|e| UserError::SerialisationError(e.to_string()))?;
 
             Ok(meta.access_level)
         } else {
@@ -125,9 +174,11 @@ impl UserHandler {
         let is_registered = self.is_registered(user_id).await?;
 
         if is_registered {
-            let mut meta: UserMeta = UserHandler::get(&mut con, user_id).await?;
+            let json_meta: String = self.get(&mut con, user_id, ContentType::Meta).await?;
+            let mut meta: UserMeta = serde_json::from_str(&json_meta)
+                .map_err(|e| UserError::SerialisationError(e.to_string()))?;
             meta.last_access = Utc::now();
-            UserHandler::set(&mut con, user_id, meta).await?;
+            self.set(&mut con, user_id, ContentType::Meta, meta).await?;
         }
 
         debug!("Access time refreshed for user: {user_id}");
@@ -148,7 +199,7 @@ impl UserHandler {
         debug!("Checking if the user {user_id} is registered");
 
         Ok(con
-            .exists(user_id.0)
+            .exists(format!("shortbot:{}:{}", self.hash_id, user_id.0))
             .await
             .map_err(|e| DbError::UnknownValkey(e.to_string()))?)
     }
@@ -163,13 +214,17 @@ impl UserHandler {
             .get_multiplexed_async_connection_with_config(&self.db_settings)
             .await?;
 
-        let metadata = serde_json::to_string(&UserMeta::new())
+        let json_meta = serde_json::to_string(&UserMeta::new())
             .map_err(|e| Box::new(UserError::SerialisationError(e.to_string())))?;
 
+        // Keep an eye on self.set
         let _: () = con
-            .set(user_id.0, metadata)
-            .await
-            .map_err(|e| Box::new(DbError::UnknownValkey(e.to_string())))?;
+            .hset(
+                format!("shortbot:{}:{}", self.hash_id, user_id.0),
+                ContentType::Meta.to_string(),
+                json_meta,
+            )
+            .await?;
 
         Ok(())
     }
@@ -187,7 +242,9 @@ impl UserHandler {
         let is_registered = self.is_registered(user_id).await?;
 
         if is_registered {
-            let meta = UserHandler::get(&mut con, user_id).await?;
+            let json_meta = self.get(&mut con, user_id, ContentType::Meta).await?;
+            let meta: UserMeta = serde_json::from_str(&json_meta)
+                .map_err(|e| UserError::SerialisationError(e.to_string()))?;
 
             Ok(meta.subscriptions)
         } else {
@@ -210,14 +267,16 @@ impl UserHandler {
         let is_registered = self.is_registered(user_id).await?;
 
         if is_registered {
-            let mut meta = UserHandler::get(&mut con, user_id).await?;
+            let json_meta = self.get(&mut con, user_id, ContentType::Meta).await?;
+            let mut meta: UserMeta = serde_json::from_str(&json_meta)
+                .map_err(|e| UserError::SerialisationError(e.to_string()))?;
 
             if meta.subscriptions.is_none() {
                 meta.subscriptions = Some(subscriptions);
             } else {
                 *meta.subscriptions.as_mut().unwrap() += subscriptions;
             }
-            UserHandler::set(&mut con, user_id, meta).await?;
+            self.set(&mut con, user_id, ContentType::Meta, meta).await?;
             info!("The user added new subscriptions");
         } else {
             warn!("The user must register before adding subscriptions");
@@ -240,7 +299,9 @@ impl UserHandler {
         let is_registered = self.is_registered(user_id).await?;
 
         if is_registered {
-            let mut meta = UserHandler::get(&mut con, user_id).await?;
+            let json_meta = self.get(&mut con, user_id, ContentType::Meta).await?;
+            let mut meta: UserMeta = serde_json::from_str(&json_meta)
+                .map_err(|e| UserError::SerialisationError(e.to_string()))?;
 
             if meta.subscriptions.is_none() {
                 warn!("Attempt to remove subscriptions from a non-registered user");
@@ -252,7 +313,7 @@ impl UserHandler {
                     meta.subscriptions = None;
                 }
 
-                UserHandler::set(&mut con, user_id, meta).await?;
+                self.set(&mut con, user_id, ContentType::Meta, meta).await?;
             }
         }
 
@@ -273,9 +334,11 @@ impl UserHandler {
         let is_registered = self.is_registered(user_id).await?;
 
         if is_registered {
-            let mut meta = UserHandler::get(&mut con, user_id).await?;
+            let json_meta = self.get(&mut con, user_id, ContentType::Meta).await?;
+            let mut meta: UserMeta = serde_json::from_str(&json_meta)
+                .map_err(|e| UserError::SerialisationError(e.to_string()))?;
             meta.access_level = access;
-            UserHandler::set(&mut con, user_id, meta).await?;
+            self.set(&mut con, user_id, ContentType::Meta, meta).await?;
         } else {
             warn!("Attempt to modify access level of a non-registered user");
         }
@@ -347,6 +410,8 @@ mod tests {
             valkey_port: 6379,
             valkey_conn_timeout: None,
             valkey_resp_timeout: None,
+            // Use a random number
+            valkey_hash_id: None,
         };
 
         UserHandler::new(&settings)
@@ -385,6 +450,7 @@ mod tests {
             valkey_port: 6379,
             valkey_conn_timeout: None,
             valkey_resp_timeout: None,
+            valkey_hash_id: None,
         };
 
         let now = Utc::now();
@@ -400,10 +466,15 @@ mod tests {
             .await
             .expect("Failed to open a new connection to Valkey");
 
-        let stored_meta: UserMeta = con
-            .get(user_id.0)
+        let stored_meta: String = con
+            .hget(
+                format!("shortbot:{}:{}", user_handler_fixture.hash_id, user_id.0),
+                ContentType::Meta.to_string(),
+            )
             .await
             .expect("Failed to retrieve the fresh user");
+        let stored_meta: UserMeta =
+            serde_json::from_str(&stored_meta).expect("Failed to deserialise");
 
         assert!(stored_meta.created_at - now < Duration::seconds(1));
     }
@@ -442,6 +513,7 @@ mod tests {
             valkey_port: 6379,
             valkey_conn_timeout: None,
             valkey_resp_timeout: None,
+            valkey_hash_id: None,
         };
 
         user_handler_fixture
@@ -463,10 +535,15 @@ mod tests {
             .await
             .expect("Failed to open a new connection to Valkey");
 
-        let stored_meta: UserMeta = con
-            .get(user_id.0)
+        let stored_meta: String = con
+            .hget(
+                format!("shortbot:{}:{}", user_handler_fixture.hash_id, user_id.0),
+                ContentType::Meta.to_string(),
+            )
             .await
             .expect("Failed to retrieve the fresh user");
+        let stored_meta: UserMeta =
+            serde_json::from_str(&stored_meta).expect("Failed to deserialise");
 
         assert_eq!(stored_meta.subscriptions, Some(test_subscriptions.clone()));
 
@@ -476,10 +553,15 @@ mod tests {
             .await
             .expect("Failed to add new subscriptions");
 
-        let stored_meta: UserMeta = con
-            .get(user_id.0)
+        let stored_meta: String = con
+            .hget(
+                format!("shortbot:{}:{}", user_handler_fixture.hash_id, user_id.0),
+                ContentType::Meta.to_string(),
+            )
             .await
             .expect("Failed to retrieve the fresh user");
+        let stored_meta: UserMeta =
+            serde_json::from_str(&stored_meta).expect("Failed to deserialise");
         assert_eq!(stored_meta.subscriptions, Some(test_subscriptions.clone()));
 
         // Third: let's insert an array of subscriptions this time.
@@ -493,10 +575,15 @@ mod tests {
 
         // SAN was inserted before in the dict.
         test_subscriptions.add_subscriptions(&["SAN"]);
-        let stored_meta: UserMeta = con
-            .get(user_id.0)
+        let stored_meta: String = con
+            .hget(
+                format!("shortbot:{}:{}", user_handler_fixture.hash_id, user_id.0),
+                ContentType::Meta.to_string(),
+            )
             .await
             .expect("Failed to retrieve the fresh user");
+        let stored_meta: UserMeta =
+            serde_json::from_str(&stored_meta).expect("Failed to deserialise");
 
         assert_eq!(stored_meta.subscriptions, Some(test_subscriptions));
     }
@@ -535,6 +622,7 @@ mod tests {
             valkey_port: 6379,
             valkey_conn_timeout: None,
             valkey_resp_timeout: None,
+            valkey_hash_id: None,
         };
 
         user_handler_fixture
@@ -566,10 +654,15 @@ mod tests {
             .await
             .expect("Failed to remove subscriptions");
 
-        let stored_meta: UserMeta = con
-            .get(user_id.0)
+        let stored_meta: String = con
+            .hget(
+                format!("shortbot:{}:{}", user_handler_fixture.hash_id, user_id.0),
+                ContentType::Meta.to_string(),
+            )
             .await
             .expect("Failed to retrieve the fresh user");
+        let stored_meta: UserMeta =
+            serde_json::from_str(&stored_meta).expect("Failed to deserialise");
         assert_eq!(stored_meta.subscriptions, Some(test_subscriptions.clone()));
 
         // Let's try again but this time the subscription won't be there.
@@ -578,10 +671,15 @@ mod tests {
             .await
             .expect("Failed to remove subscriptions");
 
-        let stored_meta: UserMeta = con
-            .get(user_id.0)
+        let stored_meta: String = con
+            .hget(
+                format!("shortbot:{}:{}", user_handler_fixture.hash_id, user_id.0),
+                ContentType::Meta.to_string(),
+            )
             .await
             .expect("Failed to retrieve the fresh user");
+        let stored_meta: UserMeta =
+            serde_json::from_str(&stored_meta).expect("Failed to deserialise");
         assert_eq!(stored_meta.subscriptions, Some(test_subscriptions.clone()));
 
         // And multiple subscriptions at once.
@@ -594,10 +692,15 @@ mod tests {
             .await
             .expect("Failed to remove subscriptions");
 
-        let stored_meta: UserMeta = con
-            .get(user_id.0)
+        let stored_meta: String = con
+            .hget(
+                format!("shortbot:{}:{}", user_handler_fixture.hash_id, user_id.0),
+                ContentType::Meta.to_string(),
+            )
             .await
             .expect("Failed to retrieve the fresh user");
+        let stored_meta: UserMeta =
+            serde_json::from_str(&stored_meta).expect("Failed to deserialise");
         assert_eq!(stored_meta.subscriptions, Some(test_subscriptions.clone()));
     }
 
