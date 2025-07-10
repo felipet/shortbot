@@ -47,22 +47,20 @@ impl UserMeta {
     }
 }
 
-// impl PartialEq for UserMeta {
-//     /// Compare two instances of [UserMeta].
-//     ///
-//     /// # Description
-//     ///
-//     /// Two instances _are the same_ if all these members are the same on both sides:
-//     /// - [UserMeta::registered]
-//     /// - [UserMeta::access_level]
-//     /// - [UserMeta::subscriptions]
-//     /// - [UserMeta::created_at]
-//     ///
-//     /// That means access and update timestamps are not included in the comparison.
-//     fn eq(&self, other: &Self) -> bool {
-//         self.registered == other.registered
-//             && self.access_level == other.access_level
-//             && self.subscriptions == other.subscriptions
-//             && self.created_at == other.created_at
-//     }
-// }
+impl PartialEq for UserMeta {
+    /// Compare two instances of [UserMeta].
+    ///
+    /// # Description
+    ///
+    /// Two instances _are the same_ if all these members are the same on both sides:
+    /// - [UserMeta::access_level]
+    /// - [UserMeta::subscriptions]
+    /// - [UserMeta::created_at]
+    ///
+    /// That means access and update timestamps are not included in the comparison.
+    fn eq(&self, other: &Self) -> bool {
+        self.access_level == other.access_level
+            && self.subscriptions == other.subscriptions
+            && self.created_at == other.created_at
+    }
+}
