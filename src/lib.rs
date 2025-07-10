@@ -191,10 +191,12 @@ pub mod users {
     use std::str::FromStr;
 
     pub mod subscriptions;
+    pub mod user_config;
     pub mod user_handler;
     pub mod user_meta;
 
     pub use subscriptions::Subscriptions;
+    pub use user_config::UserConfig;
     pub use user_handler::UserHandler;
     pub use user_meta::UserMeta;
 
