@@ -34,3 +34,14 @@
 
 - Teloxide updated to v0.16.0
 - Improved the tracing module to focus on logs from the `shortbot` module.
+
+## [0.5.0] - 2025-07-10
+
+### Fixed
+
+- Fixed bug for pushing container images with multiple tags.
+
+### Changed
+
+- The User's metadata DB schema has been refactored to improve legibility and ease sharing a Valkey server with other
+  applications.
