@@ -15,7 +15,6 @@
 
 use crate::users::{BotAccess, Subscriptions};
 use chrono::{DateTime, Utc};
-use redis_macros::{FromRedisValue, ToRedisArgs};
 use serde::{Deserialize, Serialize};
 
 /// Metadata of a bot's user.
@@ -25,7 +24,7 @@ use serde::{Deserialize, Serialize};
 /// This `struct` represents a data object for a user of the bot. It contains
 /// data that is stored in a DB, but also data that is only needed for the
 /// internal use of the cache.
-#[derive(Debug, Default, Clone, Serialize, Deserialize, FromRedisValue, ToRedisArgs)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct UserMeta {
     /// Identifies the level of access of the client. See [BotAccess].
     pub access_level: BotAccess,
