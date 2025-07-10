@@ -115,6 +115,7 @@ pub struct ValkeySettings {
     pub valkey_port: u16,
     pub valkey_conn_timeout: Option<u64>,
     pub valkey_resp_timeout: Option<u64>,
+    pub valkey_hash_id: Option<u64>,
 }
 
 impl ValkeySettings {

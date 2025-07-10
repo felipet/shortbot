@@ -33,3 +33,4 @@ mariadb_ssl_mode = false
 [users_db]
 valkey_host = "127.0.0.1"
 valkey_port = 6379
+valkey_hash_id = 0
