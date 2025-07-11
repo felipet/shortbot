@@ -82,8 +82,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Launch the Axum server.
     let app = axum::Router::new()
-        .nest_service("/", bot_router)
-        .nest("/bot", main_router);
+        .nest("/adm", main_router)
+        .fallback_service(bot_router);
 
     tokio::task::spawn(async move {
         axum::serve(tcp_listener, app)
