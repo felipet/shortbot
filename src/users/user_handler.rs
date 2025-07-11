@@ -432,7 +432,7 @@ impl UserHandler {
         let keys: Vec<u64> = if ignore_settings {
             raw_keys
                 .into_iter()
-                .map(|k| k.split(':').last().unwrap().to_owned())
+                .map(|k| k.split(':').next_back().unwrap().to_owned())
                 .map(|k| k.parse::<u64>().unwrap())
                 .collect()
         } else {
