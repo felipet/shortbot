@@ -410,6 +410,52 @@ impl UserHandler {
 
         Ok(())
     }
+
+    /// Method that returns a list of users of the bot
+    ///
+    /// # Description
+    ///
+    /// This method is meant to return a list of users that can be later used to send broadcast messages.
+    /// If `ignore_settings` is `false`, the list will only contain the users whose settings enable
+    /// broadcast messages. See [UserConfig::show_broadcast_msg].
+    pub async fn list_users(
+        &self,
+        ignore_settings: bool,
+    ) -> Result<Vec<u64>, Box<dyn Error + Send + Sync>> {
+        let mut con = self
+            .db_client
+            .get_multiplexed_async_connection_with_config(&self.db_settings)
+            .await?;
+
+        let raw_keys: Vec<String> = con.keys(format!("shortbot:{}:*", self.hash_id)).await?;
+
+        let keys: Vec<u64> = if ignore_settings {
+            raw_keys
+                .into_iter()
+                .map(|k| k.split(':').last().unwrap().to_owned())
+                .map(|k| k.parse::<u64>().unwrap())
+                .collect()
+        } else {
+            let mut keys = Vec::new();
+
+            for key in raw_keys.iter() {
+                let k = key.split(":").last().unwrap().parse::<u64>().unwrap();
+                let config: UserConfig = serde_json::from_str(
+                    &self.get(&mut con, &UserId(k), ContentType::Config).await?,
+                )?;
+
+                if config.show_broadcast_msg {
+                    keys.push(k);
+                }
+            }
+
+            keys
+        };
+
+        debug!("List of existing users: {keys:?}");
+
+        Ok(keys)
+    }
 }
 
 impl Drop for UserHandler {
@@ -1006,5 +1052,68 @@ mod tests {
             .expect("Failed to retrive the user's config");
 
         assert_eq!(mod_config, read_config);
+    }
+
+    #[rstest]
+    #[awt]
+    #[tokio::test]
+    async fn list_users(#[future] user_handler_fixture: UserHandler) {
+        Lazy::force(&TRACING);
+
+        let users_table = vec![
+            (UserId { 0: random::<u64>() }, UserConfig::default()),
+            (
+                UserId { 0: random::<u64>() },
+                UserConfig {
+                    show_broadcast_msg: false,
+                    ..Default::default()
+                },
+            ),
+            (UserId { 0: random::<u64>() }, UserConfig::default()),
+            (
+                UserId { 0: random::<u64>() },
+                UserConfig {
+                    show_broadcast_msg: false,
+                    ..Default::default()
+                },
+            ),
+        ];
+
+        // Modify the access level of the test clients according to the table.
+        for (id, cfg) in users_table.iter() {
+            user_handler_fixture
+                .register_user(id)
+                .await
+                .expect("Failed to register client");
+            user_handler_fixture
+                .modify_user_config(id, cfg.clone())
+                .await
+                .expect("Failed to set config");
+        }
+
+        let list: Vec<UserId> = user_handler_fixture
+            .list_users(false)
+            .await
+            .expect("Failed to list users")
+            .into_iter()
+            .map(|x| UserId(x))
+            .collect();
+
+        assert_eq!(list.len(), 2);
+        assert!(list.contains(&users_table[0].0));
+        assert!(list.contains(&users_table[2].0));
+
+        let list: Vec<UserId> = user_handler_fixture
+            .list_users(true)
+            .await
+            .expect("Failed to list users")
+            .into_iter()
+            .map(|x| UserId(x))
+            .collect();
+
+        assert_eq!(list.len(), 4);
+        users_table
+            .iter()
+            .for_each(|x| assert!(list.contains(&x.0)));
     }
 }
