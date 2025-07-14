@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 pub struct UserConfig {
     pub show_broadcast_msg: bool,
     pub prefer_tickers: bool,
+    pub lang_code: String,
 }
 
 impl Default for UserConfig {
@@ -27,6 +28,7 @@ impl Default for UserConfig {
         UserConfig {
             show_broadcast_msg: true,
             prefer_tickers: true,
+            lang_code: String::from("es"),
         }
     }
 }

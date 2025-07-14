@@ -58,14 +58,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         bot: bot.clone(),
     };
 
-    let main_router: axum::Router<()> = axum::Router::new()
-        .route("/adm", axum::routing::get(|| async { "Hello, World!" }))
+    let main_router: Router<()> = Router::new()
+        .route("/webhook", get(endpoints::webhook::webhook_handler))
         .with_state(state);
-
-    //TODO: uncomment when the handler is ready
-    // let main_router: Router<()> = Router::new()
-    //     .route("/webhook", get(endpoints::webhook::webhook_handler))
-    //     .with_state(state);
 
     let http_server_address = SocketAddr::from_str(&format!(
         "{}:{}",
