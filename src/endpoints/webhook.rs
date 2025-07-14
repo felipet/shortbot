@@ -92,7 +92,7 @@ fn auth_client(headers: HeaderMap, token: &SecretString) -> Result<(), BotError>
         Err(_) => return Err(BotError::InvalidToken),
     };
 
-    if auth_type.to_ascii_lowercase() != "basic" {
+    if !auth_type.eq_ignore_ascii_case("basic") {
         error!("Invalid authorization schema provided ({auth_type})");
         return Err(BotError::WrongCredentials);
     }
