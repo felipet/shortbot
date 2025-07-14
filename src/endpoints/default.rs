@@ -29,7 +29,7 @@
 //! Handler for the /help command.
 
 use crate::HandlerResult;
-use teloxide::{prelude::*, types::ParseMode};
+use teloxide::{adaptors::Throttle, prelude::*, types::ParseMode};
 use tracing::{debug, info};
 
 /// Help handler.
@@ -40,7 +40,7 @@ use tracing::{debug, info};
         chat_id = %msg.chat.id,
     )
 )]
-pub async fn default(bot: Bot, msg: Message) -> HandlerResult {
+pub async fn default(bot: Throttle<Bot>, msg: Message) -> HandlerResult {
     info!("Garbage sent");
 
     // First, try to retrieve the user of the chat.

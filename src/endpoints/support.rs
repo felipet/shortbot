@@ -15,7 +15,7 @@
 //! Handler for the /support command.
 
 use crate::HandlerResult;
-use teloxide::{prelude::*, types::ParseMode};
+use teloxide::{adaptors::Throttle, prelude::*, types::ParseMode};
 use tracing::{debug, info};
 
 /// Support handler.
@@ -26,7 +26,7 @@ use tracing::{debug, info};
         chat_id = %msg.chat.id,
     )
 )]
-pub async fn support(bot: Bot, msg: Message) -> HandlerResult {
+pub async fn support(bot: Throttle<Bot>, msg: Message) -> HandlerResult {
     info!("Command /support requested");
 
     // First, try to retrieve the user of the chat.

@@ -17,6 +17,7 @@
 use crate::{HandlerResult, ShortBotDialogue, State, users::UserHandler};
 use std::sync::Arc;
 use teloxide::{
+    adaptors::Throttle,
     prelude::*,
     types::{InlineKeyboardButton, InlineKeyboardMarkup, MessageId, ParseMode},
 };
@@ -30,7 +31,11 @@ use tracing::{debug, error};
         chat_id = %msg.chat.id,
     )
 )]
-pub async fn settings(bot: Bot, msg: Message, dialogue: ShortBotDialogue) -> HandlerResult {
+pub async fn settings(
+    bot: Throttle<Bot>,
+    msg: Message,
+    dialogue: ShortBotDialogue,
+) -> HandlerResult {
     let keyboard = InlineKeyboardMarkup::default()
         .append_row(vec![InlineKeyboardButton::callback(
             "📰 My subscriptions".to_string(),
@@ -64,7 +69,7 @@ pub async fn settings(bot: Bot, msg: Message, dialogue: ShortBotDialogue) -> Han
     )
 )]
 pub async fn settings_callback(
-    bot: Bot,
+    bot: Throttle<Bot>,
     dialogue: ShortBotDialogue,
     query: CallbackQuery,
     user_handler: Arc<UserHandler>,
@@ -110,7 +115,7 @@ pub async fn settings_callback(
 }
 
 async fn check_user_subscriptions(
-    bot: &Bot,
+    bot: &Throttle<Bot>,
     dialogue: &ShortBotDialogue,
     user_handler: Arc<UserHandler>,
     user_id: UserId,
@@ -166,7 +171,7 @@ async fn check_user_subscriptions(
 }
 
 async fn check_user_plan(
-    bot: &Bot,
+    bot: &Throttle<Bot>,
     dialogue: &ShortBotDialogue,
     user_handler: Arc<UserHandler>,
     user_id: UserId,

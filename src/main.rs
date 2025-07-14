@@ -16,13 +16,14 @@
 
 use secrecy::ExposeSecret;
 use shortbot::{
-    CommandEng, CommandSpa, State, configuration::Settings, handlers, telemetry::configure_tracing,
-    users::UserHandler,
+    CommandEng, CommandSpa, State, WebServerState, configuration::Settings, endpoints, handlers,
+    telemetry::configure_tracing, users::UserHandler,
 };
 use std::{net::SocketAddr, process::exit, str::FromStr, sync::Arc};
 use teloxide::{
-    dispatching::dialogue::InMemStorage, payloads::SetMyCommandsSetters, prelude::*,
-    update_listeners::webhooks, utils::command::BotCommands,
+    adaptors::throttle::Limits, dispatching::dialogue::InMemStorage,
+    payloads::SetMyCommandsSetters, prelude::*, requests::RequesterExt, update_listeners::webhooks,
+    utils::command::BotCommands,
 };
 use tokio::net::TcpListener;
 use tracing::{debug, error, info};
@@ -46,6 +47,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             exit(69)
         }
     };
+
+    // Instance a throttled bot, to avoid reaching the message limits when broadcast messages are sent.
+    let bot = Bot::new(settings.application.api_token.expose_secret()).throttle(Limits::default());
 
     // Build an Axum HTTP server.
     let main_router: axum::Router<()> =

@@ -17,8 +17,7 @@
 use crate::{HandlerResult, ShortBotDialogue, ShortCache};
 use data_harvest::domain::AliveShortPositions;
 use std::sync::Arc;
-use teloxide::prelude::*;
-use teloxide::types::ParseMode;
+use teloxide::{adaptors::Throttle, prelude::*, types::ParseMode};
 use tracing::{debug, info};
 
 #[tracing::instrument(
@@ -29,7 +28,7 @@ use tracing::{debug, info};
     )
 )]
 pub async fn receive_stock(
-    bot: Bot,
+    bot: Throttle<Bot>,
     dialogue: ShortBotDialogue,
     short_cache: Arc<ShortCache>,
     q: CallbackQuery,

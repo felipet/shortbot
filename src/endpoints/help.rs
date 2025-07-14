@@ -15,7 +15,7 @@
 //! Handler for the /help command.
 
 use crate::{CommandEng, CommandSpa, HandlerResult};
-use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommands};
+use teloxide::{adaptors::Throttle, prelude::*, types::ParseMode, utils::command::BotCommands};
 use tracing::{debug, info};
 
 /// Help handler.
@@ -26,7 +26,7 @@ use tracing::{debug, info};
         chat_id = %msg.chat.id,
     )
 )]
-pub async fn help(bot: Bot, msg: Message) -> HandlerResult {
+pub async fn help(bot: Throttle<Bot>, msg: Message) -> HandlerResult {
     info!("Command /help requested");
 
     // First, try to retrieve the user of the chat.

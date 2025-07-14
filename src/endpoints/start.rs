@@ -15,7 +15,7 @@
 //! Handler for the /start command.
 
 use crate::HandlerResult;
-use teloxide::prelude::*;
+use teloxide::{adaptors::Throttle, prelude::*};
 use tracing::{debug, info};
 
 /// Start handler.
@@ -26,7 +26,7 @@ use tracing::{debug, info};
         chat_id = %msg.chat.id,
     )
 )]
-pub async fn start(bot: Bot, msg: Message) -> HandlerResult {
+pub async fn start(bot: Throttle<Bot>, msg: Message) -> HandlerResult {
     info!("Command /start requested");
 
     let client_name = get_client_name(&msg);

@@ -16,6 +16,7 @@ use crate::{HandlerResult, ShortBotDialogue, ShortCache, State};
 use finance_api::Company;
 use std::sync::Arc;
 use teloxide::{
+    adaptors::Throttle,
     prelude::*,
     types::{InlineKeyboardButton, InlineKeyboardMarkup},
 };
@@ -29,7 +30,7 @@ use tracing::{debug, info};
     )
 )]
 pub async fn list_stocks(
-    bot: Bot,
+    bot: Throttle<Bot>,
     dialogue: ShortBotDialogue,
     msg: Message,
     short_cache: Arc<ShortCache>,
