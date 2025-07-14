@@ -14,7 +14,11 @@
 
 //! Library of the ShortBot crate.
 
+use crate::users::UserHandler;
+use std::sync::Arc;
 use teloxide::{
+    Bot,
+    adaptors::Throttle,
     dispatching::dialogue::{Dialogue, InMemStorage},
     types::MessageId,
     utils::command::BotCommands,
@@ -37,6 +41,7 @@ pub mod endpoints {
     mod settings;
     mod start;
     mod support;
+    pub mod webhook;
 
     pub use default::default;
     pub use help::help;
@@ -237,4 +242,11 @@ pub mod users {
             }
         }
     }
+}
+
+/// Shared state for handlers of the Axum web server.
+#[derive(Clone)]
+pub struct WebServerState {
+    pub user_handler: Arc<UserHandler>,
+    pub bot: Throttle<Bot>,
 }

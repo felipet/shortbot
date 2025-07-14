@@ -14,6 +14,7 @@
 
 //! Main file of the Shortbot
 
+use axum::{Router, routing::get};
 use secrecy::ExposeSecret;
 use shortbot::{
     CommandEng, CommandSpa, State, WebServerState, configuration::Settings, endpoints, handlers,
@@ -41,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Set up the user's metadata DB.
     let user_handler = match UserHandler::new(&settings.users_db).await {
-        Ok(uh) => uh,
+        Ok(uh) => Arc::new(uh),
         Err(e) => {
             error!("An error occurred while attempting to connect to the user's DB:\n{e}");
             exit(69)
@@ -52,8 +53,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bot = Bot::new(settings.application.api_token.expose_secret()).throttle(Limits::default());
 
     // Build an Axum HTTP server.
-    let main_router: axum::Router<()> =
-        axum::Router::new().route("/adm", axum::routing::get(|| async { "Hello, World!" }));
+    let state = WebServerState {
+        user_handler: user_handler.clone(),
+        bot: bot.clone(),
+    };
+
+    let main_router: axum::Router<()> = axum::Router::new()
+        .route("/adm", axum::routing::get(|| async { "Hello, World!" }))
+        .with_state(state);
+
+    //TODO: uncomment when the handler is ready
+    // let main_router: Router<()> = Router::new()
+    //     .route("/webhook", get(endpoints::webhook::webhook_handler))
+    //     .with_state(state);
 
     let http_server_address = SocketAddr::from_str(&format!(
         "{}:{}",
@@ -66,8 +78,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Failed to bind to the provided address");
 
     info!("Started ShortBot server");
-
-    let bot = Bot::new(settings.application.api_token.expose_secret());
 
     // Build a listener based on the axum server.
     let (listener, stop_future, bot_router) = webhooks::axum_to_router(
@@ -110,7 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Dispatcher::builder(bot, handlers::schema())
         .dependencies(dptree::deps![
             Arc::new(short_cache),
-            Arc::new(user_handler),
+            user_handler,
             InMemStorage::<State>::new()
         ])
         .enable_ctrlc_handler()
