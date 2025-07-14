@@ -56,6 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let state = WebServerState {
         user_handler: user_handler.clone(),
         bot: bot.clone(),
+        webhook_token: settings.application.webhook_token,
     };
 
     let main_router: Router<()> = Router::new()

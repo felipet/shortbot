@@ -38,12 +38,18 @@
 //!
 //! ```bash
 //! curl -X GET 'http://localhost:9602/adm/webhook' \
+//!   -H 'Authorization: Basic token' \
 //!   -H 'Content-Type: application/json' \
 //!   -d '{"req_type":"BroadcastAllMessage","req_payload":"{\"message_en\":\"Eng message\",\"message_es\":\"Spa message\"}"}'
 //! ```
 
-use crate::{WebServerState, users::UserConfig};
-use axum::{Json, extract::State};
+use crate::{WebServerState, errors::BotError, users::UserConfig};
+use axum::{
+    Json,
+    extract::State,
+    http::{HeaderName, header::HeaderMap},
+};
+use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use teloxide::{
     prelude::*,
@@ -69,19 +75,53 @@ pub struct BroadcastMessage {
     pub message_es: String,
 }
 
+fn auth_client(headers: HeaderMap, token: &SecretString) -> Result<(), BotError> {
+    let raw_token = match headers.get(HeaderName::from_lowercase(b"authorization").unwrap()) {
+        Some(header) => header,
+        None => {
+            warn!("Webhook request received without authentication token");
+            return Err(BotError::MissingCredentials);
+        }
+    };
+
+    let (auth_type, token_client) = match raw_token.to_str() {
+        Ok(r) => (
+            r.split(" ").collect::<Vec<_>>()[0],
+            r.split(" ").collect::<Vec<_>>()[1],
+        ),
+        Err(_) => return Err(BotError::InvalidToken),
+    };
+
+    if auth_type.to_ascii_lowercase() != "basic" {
+        error!("Invalid authorization schema provided ({auth_type})");
+        return Err(BotError::WrongCredentials);
+    }
+
+    if token.expose_secret() != token_client {
+        error!("Invalid authorization token provided");
+        return Err(BotError::WrongCredentials);
+    }
+
+    Ok(())
+}
+
 pub async fn webhook_handler(
+    headers: HeaderMap,
     State(state): State<WebServerState>,
     Json(payload): Json<WebhookRequest>,
-) {
+) -> Result<String, BotError> {
     info!("Webhook request received to send a broadcast message");
     debug!("Broadcast message: {}", payload.req_payload.clone());
+
+    // Check the credentials of the client.
+    auth_client(headers, &state.webhook_token)?;
 
     let (message_es, message_en) =
         match serde_json::from_str::<BroadcastMessage>(&payload.req_payload) {
             Ok(m) => (m.message_es, m.message_en),
             Err(e) => {
                 error!("Error while deserialising the broadcast message: {e}");
-                return;
+                return Err(BotError::WrongMessageFormat);
             }
         };
 
@@ -96,7 +136,7 @@ pub async fn webhook_handler(
             Ok(ul) => ul,
             Err(e) => {
                 error!("Error found while requesting a list of registered users: {e}");
-                return;
+                return Err(BotError::InternalServerError);
             }
         };
 
@@ -128,4 +168,6 @@ pub async fn webhook_handler(
     } else {
         warn!("Webhook feature not implemented");
     }
+
+    Ok("Broadcast message sent successfully".to_owned())
 }

@@ -15,6 +15,7 @@
 //! Library of the ShortBot crate.
 
 use crate::users::UserHandler;
+use secrecy::SecretString;
 use std::sync::Arc;
 use teloxide::{
     Bot,
@@ -249,4 +250,5 @@ pub mod users {
 pub struct WebServerState {
     pub user_handler: Arc<UserHandler>,
     pub bot: Throttle<Bot>,
+    pub webhook_token: SecretString,
 }

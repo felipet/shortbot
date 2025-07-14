@@ -13,6 +13,11 @@
 //    limitations under the License.
 
 //! Custom error types.
+use axum::{
+    Json,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -37,4 +42,30 @@ pub enum UserError {
     ClientLimitReached,
     #[error("serialisation error")]
     SerialisationError(String),
+}
+
+#[derive(Debug)]
+pub enum BotError {
+    WrongCredentials,
+    MissingCredentials,
+    InvalidToken,
+    WrongMessageFormat,
+    InternalServerError,
+}
+
+impl IntoResponse for BotError {
+    fn into_response(self) -> Response {
+        let (status, error_message) = match self {
+            BotError::WrongCredentials => (StatusCode::UNAUTHORIZED, "Wrong credentials"),
+            BotError::MissingCredentials => (StatusCode::BAD_REQUEST, "Missing credentials"),
+            BotError::InvalidToken => (StatusCode::BAD_REQUEST, "Invalid token"),
+            BotError::WrongMessageFormat | BotError::InternalServerError => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "Token creation error")
+            }
+        };
+        let body = Json(serde_json::json!({
+            "error": error_message,
+        }));
+        (status, body).into_response()
+    }
 }
