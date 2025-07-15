@@ -12,14 +12,9 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-use crate::{HandlerResult, ShortBotDialogue, ShortCache, State};
-use finance_api::Company;
+use crate::{HandlerResult, ShortBotDialogue, ShortCache, State, keyboards::tickers_grid_keyboard};
 use std::sync::Arc;
-use teloxide::{
-    adaptors::Throttle,
-    prelude::*,
-    types::{InlineKeyboardButton, InlineKeyboardMarkup},
-};
+use teloxide::{adaptors::Throttle, prelude::*};
 use tracing::{debug, info};
 
 #[tracing::instrument(
@@ -46,50 +41,8 @@ pub async fn list_stocks(
     debug!("The user's language code is: {:?}", lang_code);
 
     let ibex_market = short_cache.ibex35_listing().await?;
-    let market: Vec<&str> = ibex_market.iter().map(|e| e.ticker()).collect();
 
-    // Present the tickers in a table with 5 columns to reduce the number of rows.
-    let cols_per_row: usize = 5;
-    let stock_len = market.len();
-
-    // Populate the first row
-    let mut keyboard_markup = InlineKeyboardMarkup::new([vec![InlineKeyboardButton::callback::<
-        &str,
-        &str,
-    >(market[0], market[0])]]);
-
-    for company in market.iter().take(cols_per_row).skip(1) {
-        keyboard_markup = keyboard_markup.append_to_row(
-            0,
-            InlineKeyboardButton::callback::<&str, &str>(company, company),
-        );
-    }
-
-    // Populate rows by chunks of `cols_per_row` buttons
-    for i in 1..(stock_len / cols_per_row) {
-        for j in 0..cols_per_row {
-            keyboard_markup = keyboard_markup.append_to_row(
-                i,
-                InlineKeyboardButton::callback::<&str, &str>(
-                    market[j + i * cols_per_row],
-                    market[j + i * cols_per_row],
-                ),
-            );
-        }
-    }
-
-    // Finally, add the remainder in case the number of items is not divisible by `cols_per_row`
-    if stock_len % cols_per_row != 0 {
-        let mut i = stock_len - cols_per_row;
-        while i < stock_len {
-            keyboard_markup = keyboard_markup.append_to_row(
-                stock_len / cols_per_row + 1,
-                InlineKeyboardButton::callback::<&str, &str>(market[i], market[i]),
-            );
-
-            i += 1;
-        }
-    }
+    let keyboard_markup = tickers_grid_keyboard(&ibex_market);
 
     bot.send_message(msg.chat.id, _select_stock_message(lang_code.as_deref()))
         .reply_markup(keyboard_markup)

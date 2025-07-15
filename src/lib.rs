@@ -27,6 +27,7 @@ use teloxide::{
 
 pub mod configuration;
 pub mod errors;
+pub mod keyboards;
 pub mod shortcache;
 pub mod telemetry;
 
@@ -99,6 +100,8 @@ pub enum CommandEng {
     Settings,
     #[command(description = "Show available subscription plans")]
     Plans,
+    #[command(description = "Handle subscriptions")]
+    Subscriptions,
 }
 
 /// User commands in Spanish language
@@ -120,6 +123,8 @@ pub enum CommandSpa {
     Configuracion,
     #[command(description = "Mostrar los planes de subscripción")]
     Planes,
+    #[command(description = "Gestionar subscripciones")]
+    Subscripciones,
 }
 
 pub mod users {
