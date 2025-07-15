@@ -47,7 +47,7 @@ pub mod endpoints {
 
     pub use default::default;
     pub use help::help;
-    pub use liststocks::list_stocks;
+    pub use liststocks::{list_stock_by_name, list_stocks};
     pub use receivestock::receive_stock;
     pub use settings::{settings, settings_callback};
     pub use start::start;
@@ -75,7 +75,12 @@ pub enum State {
     #[default]
     Start,
     ListStocks,
-    ReceiveStock,
+    ListStocksByName {
+        msg_id: MessageId,
+    },
+    ReceiveStock {
+        msg_id: MessageId,
+    },
     Settings {
         msg_id: MessageId,
     },

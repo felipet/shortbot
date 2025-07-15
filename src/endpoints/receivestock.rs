@@ -17,7 +17,11 @@
 use crate::{HandlerResult, ShortBotDialogue, ShortCache};
 use data_harvest::domain::AliveShortPositions;
 use std::sync::Arc;
-use teloxide::{adaptors::Throttle, prelude::*, types::ParseMode};
+use teloxide::{
+    adaptors::Throttle,
+    prelude::*,
+    types::{MessageId, ParseMode},
+};
 use tracing::{debug, info};
 
 #[tracing::instrument(
@@ -32,16 +36,28 @@ pub async fn receive_stock(
     dialogue: ShortBotDialogue,
     short_cache: Arc<ShortCache>,
     q: CallbackQuery,
+    msg_id: MessageId,
 ) -> HandlerResult {
+    let payload = &q.data.unwrap();
+
     // Let's try to retrieve the user of the chat.
     let lang_code = match q.from.language_code.as_deref().unwrap_or("en") {
         "es" => "es",
         _ => "en",
     };
-
     debug!("The user's language code is: {:?}", lang_code);
 
-    let positions = short_cache.short_position(&q.data.unwrap()).await;
+    // Delete the previous keyboard and display a message that contains the name of the chosen ticker/company.
+    bot.delete_message(dialogue.chat_id(), msg_id).await?;
+    let message = match lang_code {
+        "es" => _chose_es(payload),
+        _ => _chose_en(payload),
+    };
+    bot.send_message(dialogue.chat_id(), message)
+        .parse_mode(ParseMode::Html)
+        .await?;
+
+    let positions = short_cache.short_position(payload).await;
     debug!("Received AliveShortPositions: {:?}", positions);
 
     if positions.is_ok() {

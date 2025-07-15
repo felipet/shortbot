@@ -55,7 +55,8 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
         .endpoint(default);
 
     let query_handler = Update::filter_callback_query()
-        .branch(case![State::ReceiveStock].endpoint(receive_stock))
+        .branch(case![State::ListStocksByName { msg_id }].endpoint(list_stock_by_name))
+        .branch(case![State::ReceiveStock { msg_id }].endpoint(receive_stock))
         .branch(case![State::Settings { msg_id }].endpoint(settings_callback));
 
     dialogue::enter::<Update, InMemStorage<State>, State, _>()
