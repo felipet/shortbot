@@ -45,3 +45,16 @@
 
 - The User's metadata DB schema has been refactored to improve legibility and ease sharing a Valkey server with other
   applications.
+
+## [0.6.0] - 2025-07-15
+
+### Added
+
+- New method added to `UserHandler` that returns a list of registered users of the bot.
+- New handler added for the webhook endpoint of the main web server that delivers broadcast messages.
+- Broadcast messages feature completely implemented.
+- Teloxide updated to v0.17.0.
+
+### Changed
+
+- The user's schema in Valkey was extended to add a section for configuration parameters.
