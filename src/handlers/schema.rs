@@ -37,7 +37,8 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
             .branch(case![CommandEng::Help].endpoint(help))
             .branch(case![CommandEng::Short].endpoint(list_stocks))
             .branch(case![CommandEng::Support].endpoint(support))
-            .branch(case![CommandEng::Settings].endpoint(settings)),
+            .branch(case![CommandEng::Settings].endpoint(settings))
+            .branch(case![CommandEng::Subscriptions].endpoint(subscriptions_menu)),
     );
 
     let command_handler_spa = teloxide::filter_command::<CommandSpa, _>().branch(
@@ -45,7 +46,8 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
             .branch(case![CommandSpa::Inicio].endpoint(start))
             .branch(case![CommandSpa::Ayuda].endpoint(help))
             .branch(case![CommandSpa::Short].endpoint(list_stocks))
-            .branch(case![CommandSpa::Apoyo].endpoint(support)),
+            .branch(case![CommandSpa::Apoyo].endpoint(support))
+            .branch(case![CommandSpa::Subscripciones].endpoint(subscriptions_menu)),
     );
 
     let message_handler = Update::filter_message()
@@ -57,7 +59,8 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
     let query_handler = Update::filter_callback_query()
         .branch(case![State::ListStocksByName { msg_id }].endpoint(list_stock_by_name))
         .branch(case![State::ReceiveStock { msg_id }].endpoint(receive_stock))
-        .branch(case![State::Settings { msg_id }].endpoint(settings_callback));
+        .branch(case![State::Settings { msg_id }].endpoint(settings_callback))
+        .branch(case![State::Subscriptions { msg_id }].endpoint(subscriptions_callback));
 
     dialogue::enter::<Update, InMemStorage<State>, State, _>()
         .branch(message_handler)

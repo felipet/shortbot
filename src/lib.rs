@@ -42,6 +42,7 @@ pub mod endpoints {
     mod receivestock;
     mod settings;
     mod start;
+    mod subscriptions;
     mod support;
     pub mod webhook;
 
@@ -51,6 +52,7 @@ pub mod endpoints {
     pub use receivestock::receive_stock;
     pub use settings::{settings, settings_callback};
     pub use start::start;
+    pub use subscriptions::{subscriptions_callback, subscriptions_menu};
     pub use support::support;
 }
 
@@ -82,6 +84,9 @@ pub enum State {
         msg_id: MessageId,
     },
     Settings {
+        msg_id: MessageId,
+    },
+    Subscriptions {
         msg_id: MessageId,
     },
 }
