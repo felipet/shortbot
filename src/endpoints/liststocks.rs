@@ -67,7 +67,7 @@ pub async fn list_stocks(
     } else {
         debug!("The user prefers company names");
         (
-            _select_company_message(lang_code.as_deref()),
+            _select_starting_letter(lang_code.as_deref()),
             companies_keyboard(&ibex_market, None),
         )
     };
@@ -103,7 +103,6 @@ pub async fn list_stock_by_name(
     q: CallbackQuery,
     msg_id: MessageId,
 ) -> HandlerResult {
-    bot.delete_message(dialogue.chat_id(), msg_id).await?;
     let starting_char = q.data.unwrap();
     // Let's try to retrieve the user's language.
     let lang_code = q.from.language_code.as_deref();
@@ -115,7 +114,11 @@ pub async fn list_stock_by_name(
     let keyboard_markup = companies_keyboard(&ibex_market, Some(&starting_char));
 
     let msg_id = bot
-        .send_message(dialogue.chat_id(), _select_company_message(lang_code))
+        .edit_message_text(
+            dialogue.chat_id(),
+            msg_id,
+            _select_company_message(lang_code),
+        )
         .reply_markup(keyboard_markup)
         .await?
         .id;
@@ -135,6 +138,15 @@ fn _select_ticker_message(lang_code: Option<&str>) -> String {
 }
 
 fn _select_company_message(lang_code: Option<&str>) -> String {
+    let lang_code = lang_code.unwrap_or("en");
+
+    match lang_code {
+        "es" => String::from("Selecciona una empresa:"),
+        _ => String::from("Choose a company:"),
+    }
+}
+
+fn _select_starting_letter(lang_code: Option<&str>) -> String {
     let lang_code = lang_code.unwrap_or("en");
 
     match lang_code {
