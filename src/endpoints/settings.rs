@@ -38,6 +38,10 @@ pub async fn settings(
 ) -> HandlerResult {
     let keyboard = InlineKeyboardMarkup::default()
         .append_row(vec![InlineKeyboardButton::callback(
+            "📺 Display settings".to_string(),
+            "display_main",
+        )])
+        .append_row(vec![InlineKeyboardButton::callback(
             "📰 My subscriptions".to_string(),
             "subscriptions",
         )])
