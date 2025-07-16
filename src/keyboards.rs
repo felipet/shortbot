@@ -31,47 +31,16 @@ const NAMES_PER_ROW: usize = 2;
 
 /// Inline keyboard that lists tickers in a grid.
 pub fn tickers_grid_keyboard(ibex_companies: &[IbexCompany]) -> InlineKeyboardMarkup {
-    // We only need the ticker field, so let's build a list of tickers.
-    let market: Vec<&str> = ibex_companies.iter().map(|e| e.ticker()).collect();
-    let stock_len = market.len();
+    let mut keyboard_markup = InlineKeyboardMarkup::default();
 
-    // Populate the first row
-    let mut keyboard_markup = InlineKeyboardMarkup::new([vec![InlineKeyboardButton::callback::<
-        &str,
-        &str,
-    >(market[0], market[0])]]);
-
-    for company in market.iter().take(BUTTONS_PER_ROW).skip(1) {
-        keyboard_markup = keyboard_markup.append_to_row(
-            0,
-            InlineKeyboardButton::callback::<&str, &str>(company, company),
-        );
-    }
-
-    // Populate rows by chunks of `BUTTONS_PER_ROW` buttons
-    for i in 1..(stock_len / BUTTONS_PER_ROW) {
-        for j in 0..BUTTONS_PER_ROW {
-            keyboard_markup = keyboard_markup.append_to_row(
-                i,
-                InlineKeyboardButton::callback::<&str, &str>(
-                    market[j + i * BUTTONS_PER_ROW],
-                    market[j + i * BUTTONS_PER_ROW],
-                ),
-            );
-        }
-    }
-
-    // Finally, add the remainder in case the number of items is not divisible by `BUTTONS_PER_ROW`
-    if stock_len % BUTTONS_PER_ROW != 0 {
-        let mut i = stock_len - BUTTONS_PER_ROW;
-        while i < stock_len {
-            keyboard_markup = keyboard_markup.append_to_row(
-                stock_len / BUTTONS_PER_ROW + 1,
-                InlineKeyboardButton::callback::<&str, &str>(market[i], market[i]),
-            );
-
-            i += 1;
-        }
+    for c in ibex_companies
+        .iter()
+        .map(|e| e.ticker())
+        .collect::<Vec<&str>>()
+        .chunks(BUTTONS_PER_ROW)
+    {
+        keyboard_markup =
+            keyboard_markup.append_row(c.iter().map(|c| InlineKeyboardButton::callback(*c, *c)));
     }
 
     keyboard_markup
