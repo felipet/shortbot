@@ -87,7 +87,7 @@ pub enum State {
         msg_id: MessageId,
     },
     Subscriptions {
-        msg_id: MessageId,
+        msg_id: Option<MessageId>,
     },
 }
 
@@ -208,8 +208,10 @@ pub mod users {
     //! After that, the whole workspace can be built using `cargo build`, but we need to run SQLx in offline mode:
     //! `export SQLX_OFFLINE=true`.
 
+    use crate::ShortBotDialogue;
     use serde::{Deserialize, Serialize};
-    use std::str::FromStr;
+    use std::{str::FromStr, sync::Arc};
+    use teloxide::types::UserId;
 
     pub mod subscriptions;
     pub mod user_config;
@@ -256,6 +258,26 @@ pub mod users {
                 BotAccess::Unlimited => write!(f, "🥷 Unlimited plan"),
                 BotAccess::Admin => write!(f, "💪 Admin"),
             }
+        }
+    }
+
+    /// Function that returns the prefered language of the user
+    ///
+    /// # Description
+    ///
+    /// This function attempts to extract the user preferences from the settings, if the user is not registered,
+    /// it retrieves the language from Telegram's API. If everything fails, it returns `en`.
+    pub async fn user_lang_code(
+        user_id: &UserId,
+        user_handler: Arc<UserHandler>,
+        lang_code: Option<String>,
+    ) -> String {
+        if let Ok(cfg) = user_handler.user_config(user_id).await {
+            cfg.lang_code
+        } else if let Some(lang_code) = lang_code {
+            lang_code
+        } else {
+            "en".to_owned()
         }
     }
 }
