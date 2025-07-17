@@ -97,7 +97,7 @@ pub async fn settings_callback(
 
     match callback_choice.as_str() {
         "subscriptions" => {
-            check_user_subscriptions(&bot, &dialogue, user_handler, user_id, msg_id).await?;
+            todo!()
         }
         "plan" => {
             check_user_plan(&bot, &dialogue, user_handler, user_id).await?;
@@ -113,62 +113,6 @@ pub async fn settings_callback(
                 .await?;
             dialogue.exit().await?;
         }
-    }
-
-    Ok(())
-}
-
-async fn check_user_subscriptions(
-    bot: &Throttle<Bot>,
-    dialogue: &ShortBotDialogue,
-    user_handler: Arc<UserHandler>,
-    user_id: UserId,
-    msg_id: MessageId,
-) -> HandlerResult {
-    let subscriptions = user_handler.subscriptions(&user_id).await?;
-
-    if let Some(subs) = subscriptions {
-        bot.send_message(
-            dialogue.chat_id(),
-            "💹 These are your current subscriptions:",
-        )
-        .disable_notification(true)
-        .await?;
-
-        bot.send_message(dialogue.chat_id(), format!("{subs}"))
-            .disable_notification(true)
-            .await?;
-
-        let keyboard = InlineKeyboardMarkup::default()
-            .append_row(vec![InlineKeyboardButton::callback(
-                "➕ Add new subscriptions".to_string(),
-                "add_subscriptions",
-            )])
-            .append_row(vec![InlineKeyboardButton::callback(
-                "➖ Delete a subscription".to_string(),
-                "delete_subscriptions",
-            )])
-            .append_row(vec![InlineKeyboardButton::callback(
-                "✖️ Clear my subscriptions".to_string(),
-                "clear_subscriptions",
-            )])
-            .append_row(vec![InlineKeyboardButton::callback(
-                "🏃‍♀️‍➡️ Exit".to_string(),
-                "exit",
-            )]);
-
-        bot.edit_message_reply_markup(dialogue.chat_id(), msg_id)
-            .reply_markup(keyboard)
-            .await?;
-    } else {
-        bot.send_message(
-            dialogue.chat_id(),
-            "You don't have any subscriptions at this moment",
-        )
-        .disable_notification(true)
-        .await?;
-
-        dialogue.exit().await?;
     }
 
     Ok(())
