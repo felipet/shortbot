@@ -114,3 +114,47 @@ fn starting_char_grid(ibex_companies: &[IbexCompany]) -> Vec<String> {
 
     result
 }
+
+pub fn subscriptions_keyboard(lang_code: &str) -> InlineKeyboardMarkup {
+    InlineKeyboardMarkup::default()
+        .append_row(vec![InlineKeyboardButton::callback(
+            format!(
+                "➕ {}",
+                match lang_code {
+                    "es" => "Añadir nuevas subscripciones",
+                    _ => "Add new subscriptions",
+                }
+            ),
+            "add_subscriptions",
+        )])
+        .append_row(vec![InlineKeyboardButton::callback(
+            format!(
+                "➖ {}",
+                match lang_code {
+                    "es" => "Eliminar subscripciones",
+                    _ => "Delete subscriptions",
+                }
+            ),
+            "delete_subscriptions",
+        )])
+        .append_row(vec![InlineKeyboardButton::callback(
+            format!(
+                "✖️ {}",
+                match lang_code {
+                    "es" => "Borrar todas mis subscripciones",
+                    _ => "Clear my subscriptions",
+                }
+            ),
+            "clear_subscriptions",
+        )])
+        .append_row(vec![InlineKeyboardButton::callback(
+            format!(
+                "🏃‍♀️‍➡️ {}",
+                match lang_code {
+                    "es" => "Salir",
+                    _ => "Exit",
+                }
+            ),
+            "exit",
+        )])
+}

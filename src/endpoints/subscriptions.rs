@@ -13,17 +13,21 @@
 //    limitations under the License.
 
 use crate::{
-    HandlerResult, ShortBotDialogue, ShortCache, State,
-    keyboards::{companies_keyboard, tickers_grid_keyboard},
-    users::{UserConfig, UserHandler},
+    HandlerResult, ShortBotDialogue, State,
+    keyboards::subscriptions_keyboard,
+    users::{UserConfig, UserHandler, user_lang_code},
 };
 use std::sync::Arc;
-use teloxide::{adaptors::Throttle, prelude::*, types::MessageId};
+use teloxide::{
+    adaptors::Throttle,
+    prelude::*,
+    types::{MessageId, ParseMode},
+};
 use tracing::{debug, error, info};
 
 #[tracing::instrument(
     name = "Subscriptions menu",
-    skip(bot, dialogue, _user_handler),
+    skip(bot, dialogue, user_handler),
     fields(
         chat_id = %dialogue.chat_id(),
     )
@@ -31,31 +35,96 @@ use tracing::{debug, error, info};
 pub async fn subscriptions_menu(
     bot: Throttle<Bot>,
     dialogue: ShortBotDialogue,
-    _user_handler: Arc<UserHandler>,
+    user_handler: Arc<UserHandler>,
 ) -> HandlerResult {
+    let user_id = match dialogue.chat_id().as_user() {
+        Some(user_id) => user_id,
+        None => {
+            error!("Subscriptions command called by a non-user");
+            return Ok(());
+        }
+    };
+    let lang_code = user_lang_code(&user_id, user_handler.clone(), None).await;
+
+    show_subscriptions(&bot, &dialogue, user_handler.clone(), user_id, true).await?;
+
     let msg_id = bot
-        .send_message(dialogue.chat_id(), "Feature not implemented!")
+        .send_message(
+            dialogue.chat_id(),
+            if lang_code == "es" {
+                "🗃️ <b>Selecciona una opción:</b>"
+            } else {
+                "🗃️ <b>Select a following action:</b>"
+            },
+        )
+        .reply_markup(subscriptions_keyboard(&lang_code))
+        .parse_mode(ParseMode::Html)
         .await?
         .id;
 
-    dialogue.update(State::Subscriptions { msg_id }).await?;
+    dialogue
+        .update(State::Subscriptions {
+            msg_id: Some(msg_id),
+        })
+        .await?;
+
+    Ok(())
+}
+
+pub(crate) async fn show_subscriptions(
+    bot: &Throttle<Bot>,
+    dialogue: &ShortBotDialogue,
+    user_handler: Arc<UserHandler>,
+    user_id: UserId,
+    _extended_info: bool,
+) -> HandlerResult {
+    let lang_code = user_lang_code(&user_id, user_handler.clone(), None).await;
+
+    if let Some(subscriptions) = user_handler.subscriptions(&user_id).await? {
+        bot.send_message(
+            dialogue.chat_id(),
+            if lang_code == "es" {
+                "💹 <b>Estas son tus subscripciones:</b>"
+            } else {
+                "💹 <b>These are your current subscriptions:</b>"
+            },
+        )
+        .parse_mode(ParseMode::Html)
+        .await?;
+        bot.send_message(dialogue.chat_id(), format!("{subscriptions}"))
+            .disable_notification(true)
+            .await?;
+    } else {
+        bot.send_message(
+            dialogue.chat_id(),
+            if lang_code == "es" {
+                "❌ No tienes ninguna subscripción en este momento."
+            } else {
+                "❌ You don't have any subscriptions at this moment"
+            },
+        )
+        .disable_notification(true)
+        .await?;
+    }
 
     Ok(())
 }
 
 #[tracing::instrument(
     name = "Subscriptions callback",
-    skip(_bot, dialogue, _query, _user_handler, _msg_id),
+    skip(bot, dialogue, query, user_handler, msg_id),
     fields(
         chat_id = %dialogue.chat_id(),
     )
 )]
 pub async fn subscriptions_callback(
-    _bot: Throttle<Bot>,
+    bot: Throttle<Bot>,
     dialogue: ShortBotDialogue,
-    _query: CallbackQuery,
-    _user_handler: Arc<UserHandler>,
-    _msg_id: MessageId,
+    query: CallbackQuery,
+    user_handler: Arc<UserHandler>,
+    msg_id: Option<MessageId>,
 ) -> HandlerResult {
-    todo!()
+    debug!("Subscriptions callback");
+
+    Ok(())
 }
