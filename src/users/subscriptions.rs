@@ -195,10 +195,10 @@ impl std::fmt::Display for Subscriptions {
             f,
             "{}",
             self.tickers
-                .clone()
-                .into_iter()
-                .collect::<Vec<String>>()
-                .join(";")
+                .iter()
+                .map(|e| format!("- {e}\n"))
+                .collect::<Vec<_>>()
+                .join("")
         )
     }
 }
