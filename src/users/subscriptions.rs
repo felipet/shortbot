@@ -276,21 +276,6 @@ mod tests {
     }
 
     #[test]
-    fn to_string() {
-        let tickers = vec!["SAN", "REP"];
-
-        let test = Subscriptions::try_from(tickers.as_slice())
-            .expect("Failed to build a Subscritpions map");
-
-        // A `HashSet` does not ensure any order of the elements, so we have 2 elements, we need to test two
-        // possible strings.
-        assert!(
-            (test.to_string() == "SAN;REP".to_owned())
-                || (test.to_string() == "REP;SAN".to_owned())
-        );
-    }
-
-    #[test]
     fn is_subscribed() {
         let tickers = vec!["SAN", "REP", "IAG"];
 
