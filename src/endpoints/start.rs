@@ -32,7 +32,7 @@ pub async fn start(bot: Throttle<Bot>, msg: Message) -> HandlerResult {
     let client_name = get_client_name(&msg);
 
     // Let's ry to retrieve the user of the chat.
-    let lang_code = match msg.from {
+    let lang_code = match &msg.from {
         Some(user) => user.language_code.clone(),
         None => None,
     };
