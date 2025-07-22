@@ -50,10 +50,10 @@ pub mod endpoints {
     pub use default::default;
     pub use help::help;
     pub use liststocks::{list_stock_by_name, list_stocks};
-    pub use receivestock::receive_stock;
+    pub(crate) use receivestock::{receive_stock, short_report};
     pub use settings::{settings, settings_callback};
     pub use start::start;
-    pub use subscriptions::{subscriptions_callback, subscriptions_menu};
+    pub use subscriptions::{show_subscriptions, subscriptions_callback, subscriptions_menu};
     pub use support::support;
 }
 
@@ -119,6 +119,8 @@ pub enum CommandEng {
     Plans,
     #[command(description = "Handle subscriptions")]
     Subscriptions,
+    #[command(description = "Short report of your subscribed stocks")]
+    Brief,
 }
 
 /// User commands in Spanish language
@@ -142,6 +144,8 @@ pub enum CommandSpa {
     Planes,
     #[command(description = "Gestionar subscripciones")]
     Subscripciones,
+    #[command(description = "Resumen de tus posiciones subscritas")]
+    Resumen,
 }
 
 pub mod users {
@@ -218,6 +222,7 @@ pub mod users {
     use serde::{Deserialize, Serialize};
     use std::{str::FromStr, sync::Arc};
     use teloxide::types::UserId;
+    use tracing::trace;
 
     pub mod subscriptions;
     pub mod user_config;
@@ -285,6 +290,38 @@ pub mod users {
         } else {
             "en".to_owned()
         }
+    }
+
+    /// Function that registers an user if not regsitered previously.
+    ///
+    /// # Description
+    ///
+    /// The user is registered using the default settings, but a language code can be passed to the function
+    /// to modify the default language code (_en_).
+    pub(crate) async fn register_new_user(
+        user_id: UserId,
+        user_handler: Arc<UserHandler>,
+        lang_code: Option<&str>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        trace!("Checking if the user {user_id} is registered in the DB");
+
+        if !user_handler.is_registered(&user_id).await? {
+            trace!("The user was not registered. Proceeding to register");
+            user_handler.register_user(&user_id).await?;
+            if let Some(lang_code) = lang_code {
+                if lang_code == "es" {
+                    trace!("Using language Spanish as default for the user");
+                    let mut user_cfg = user_handler.user_config(&user_id).await?;
+                    user_cfg.lang_code = "es".to_owned();
+                    user_handler.modify_user_config(&user_id, user_cfg).await?;
+                }
+            }
+            trace!("User successfully registered in the DB");
+        } else {
+            trace!("The user {user_id} is registered");
+        }
+
+        Ok(())
     }
 }
 

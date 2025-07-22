@@ -13,9 +13,9 @@
 //    limitations under the License.
 
 use crate::{
-    HandlerResult, ShortBotDialogue, ShortCache, State,
+    HandlerResult, ShortBotDialogue, ShortCache, State, endpoints, error_message,
     keyboards::{small_buttons_grid_keyboard, subscriptions_keyboard, tickers_grid_keyboard},
-    users::{Subscriptions, UserConfig, UserHandler, user_lang_code},
+    users::{Subscriptions, UserConfig, UserHandler, register_new_user, user_lang_code},
 };
 use std::sync::Arc;
 use teloxide::{
@@ -54,7 +54,7 @@ pub async fn subscriptions_menu(
     };
     let lang_code = user_lang_code(&user_id, user_handler.clone(), None).await;
 
-    show_subscriptions(&bot, &dialogue, user_handler.clone(), user_id, true).await?;
+    list_subscriptions(&bot, &dialogue, user_handler.clone(), user_id, true).await?;
 
     let msg_id = bot
         .send_message(
@@ -242,7 +242,80 @@ pub async fn subscriptions_callback(
     Ok(())
 }
 
-pub(crate) async fn show_subscriptions(
+#[tracing::instrument(
+    name = "Brief handler",
+    skip(bot, msg, short_cache, user_handler),
+    fields(
+        chat_id = %msg.chat.id,
+    )
+)]
+pub async fn show_subscriptions(
+    bot: Throttle<Bot>,
+    msg: Message,
+    dialogue: ShortBotDialogue,
+    short_cache: Arc<ShortCache>,
+    user_handler: Arc<UserHandler>,
+) -> HandlerResult {
+    let user_id = match &msg.from {
+        Some(user) => {
+            debug!("User {} entered in the brief handler", user.id);
+            user.id
+        }
+        None => {
+            error!("Settings menu called by a non-user of Telegram");
+            return Ok(());
+        }
+    };
+    let lang_code = &user_lang_code(
+        &user_id,
+        user_handler.clone(),
+        msg.from.unwrap().language_code,
+    )
+    .await;
+
+    // First: if the user is not registered, register him/her.
+    match register_new_user(user_id, user_handler.clone(), Some(lang_code)).await {
+        Ok(_) => debug!("User found in the DB"),
+        Err(e) => {
+            error!("Error found while registering a new user: {e}");
+            bot.send_message(msg.chat.id, error_message(lang_code))
+                .await?;
+            return Err(e);
+        }
+    }
+
+    // At this point, all users are registered.
+    if let Some(subscriptions) = user_handler.subscriptions(&user_id).await? {
+        bot.send_message(msg.chat.id, _brief_message(lang_code))
+            .parse_mode(ParseMode::Html)
+            .await?;
+        for subscription in subscriptions.into_iter() {
+            endpoints::short_report(
+                &bot,
+                dialogue.chat_id(),
+                short_cache.clone(),
+                lang_code,
+                &subscription,
+            )
+            .await?;
+        }
+    } else {
+        bot.send_message(
+            msg.chat.id,
+            if lang_code == "es" {
+                "❌ No tienes ninguna subscripción en este momento. Usa el comando /subscripciones para añadir."
+            } else {
+                "❌ You don't have any subscriptions at this moment. Use the /subscriptions command to add."
+            },
+        )
+        .disable_notification(true)
+        .await?;
+    }
+
+    Ok(())
+}
+
+pub(crate) async fn list_subscriptions(
     bot: &Throttle<Bot>,
     dialogue: &ShortBotDialogue,
     user_handler: Arc<UserHandler>,
@@ -474,5 +547,16 @@ fn _error_found(lang_code: &str) -> String {
     match lang_code {
         "es" => String::from("👩‍🔧 Se ha detectado un error. Inténtalo de nuevo más tarde."),
         _ => String::from("👩‍🔧 An error ocurred. Please, try again later."),
+    }
+}
+
+fn _brief_message(lang_code: &str) -> String {
+    match lang_code {
+        "es" => String::from(
+            "📢 <b>Comprobando las posiciones en corto para tus valores subscritos...</b>",
+        ),
+        _ => String::from(
+            "📢 <b>Checking the active short positions for your subscribed tickers...</b>",
+        ),
     }
 }
