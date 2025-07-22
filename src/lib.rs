@@ -31,6 +31,7 @@ pub mod keyboards;
 pub mod shortcache;
 pub mod telemetry;
 
+pub(crate) use errors::error_message;
 pub use errors::{DbError, UserError};
 pub use shortcache::ShortCache;
 

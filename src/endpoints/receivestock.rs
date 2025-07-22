@@ -14,7 +14,10 @@
 
 //! Handler that lists all the available stocks to the client.
 
-use crate::{HandlerResult, ShortBotDialogue, ShortCache};
+use crate::{
+    HandlerResult, ShortBotDialogue, ShortCache, error_message,
+    users::{UserHandler, user_lang_code},
+};
 use data_harvest::domain::AliveShortPositions;
 use std::sync::Arc;
 use teloxide::{
@@ -22,49 +25,81 @@ use teloxide::{
     prelude::*,
     types::{MessageId, ParseMode},
 };
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 #[tracing::instrument(
     name = "Receive stock handler",
-    skip(bot, dialogue, short_cache, q),
+    skip(bot, dialogue, short_cache, user_handler, q, msg_id),
     fields(
         chat_id = %dialogue.chat_id(),
+        ticker = %q.data.as_ref().unwrap(),
     )
 )]
 pub async fn receive_stock(
     bot: Throttle<Bot>,
     dialogue: ShortBotDialogue,
     short_cache: Arc<ShortCache>,
+    user_handler: Arc<UserHandler>,
     q: CallbackQuery,
     msg_id: MessageId,
 ) -> HandlerResult {
-    let payload = &q.data.unwrap();
-
-    // Let's try to retrieve the user of the chat.
-    let lang_code = match q.from.language_code.as_deref().unwrap_or("en") {
-        "es" => "es",
-        _ => "en",
-    };
-    debug!("The user's language code is: {:?}", lang_code);
-
     // Delete the previous keyboard and display a message that contains the name of the chosen ticker/company.
     bot.delete_message(dialogue.chat_id(), msg_id).await?;
-    let message = match lang_code {
-        "es" => _chose_es(payload),
-        _ => _chose_en(payload),
+
+    let ticker = &q.data.unwrap();
+
+    let user_id = match dialogue.chat_id().as_user() {
+        Some(id) => {
+            debug!("User {} entered in the settings menu", id);
+            id
+        }
+        None => {
+            error!("Settings menu called by a non-user of Telegram");
+            return Ok(());
+        }
     };
-    bot.send_message(dialogue.chat_id(), message)
+    let lang_code = &user_lang_code(&user_id, user_handler.clone(), None).await;
+
+    match short_report(&bot, dialogue.chat_id(), short_cache, lang_code, ticker).await {
+        Ok(_) => info!("Short positions successfully reported"),
+        Err(e) => {
+            error!("Error found while accessing the stock DB: {e}");
+            bot.send_message(dialogue.chat_id(), error_message(lang_code))
+                .await?;
+            return Err(e);
+        }
+    }
+
+    dialogue.exit().await?;
+
+    Ok(())
+}
+
+/// Function that provides a report of the short positions against a given ticker.
+pub(crate) async fn short_report(
+    bot: &Throttle<Bot>,
+    chat_id: ChatId,
+    short_cache: Arc<ShortCache>,
+    lang_code: &str,
+    ticker: &str,
+) -> HandlerResult {
+    let message = match lang_code {
+        "es" => _chose_es(ticker),
+        _ => _chose_en(ticker),
+    };
+
+    bot.send_message(chat_id, message)
         .parse_mode(ParseMode::Html)
         .await?;
 
-    let positions = short_cache.short_position(payload).await;
+    let positions = short_cache.short_position(ticker).await;
     debug!("Received AliveShortPositions: {:?}", positions);
 
     if positions.is_ok() {
         let shorts = positions.unwrap();
 
         if shorts.positions.is_empty() {
-            bot.send_message(dialogue.chat_id(), _no_shorts_msg(lang_code))
+            bot.send_message(chat_id, _no_shorts_msg(lang_code))
                 .parse_mode(ParseMode::Html)
                 .await?;
         } else {
@@ -73,7 +108,7 @@ pub async fn receive_stock(
                 "es" => _shorts_msg_es(&shorts),
                 _ => _shorts_msg_en(&shorts),
             };
-            bot.send_message(dialogue.chat_id(), message)
+            bot.send_message(chat_id, message)
                 .parse_mode(ParseMode::Html)
                 .await?;
         }
@@ -83,11 +118,8 @@ pub async fn receive_stock(
         } else {
             "Information not available"
         };
-        bot.send_message(dialogue.chat_id(), message).await?;
+        bot.send_message(chat_id, message).await?;
     }
-
-    info!("Short position request served");
-    dialogue.exit().await?;
 
     Ok(())
 }

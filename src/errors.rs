@@ -69,3 +69,10 @@ impl IntoResponse for BotError {
         (status, body).into_response()
     }
 }
+
+pub(crate) fn error_message(lang_code: &str) -> &str {
+    match lang_code {
+        "es" => "🚒 Ha ocurrido un error, por favor, inténtalo más tarde",
+        _ => "🚒 An error was found, please try again later",
+    }
+}
