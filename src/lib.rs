@@ -72,7 +72,7 @@ type ShortBotDialogue = Dialogue<State, InMemStorage<State>>;
 /// # Description
 ///
 /// TODO! Document the state machine states.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub enum State {
     #[default]
     Start,
@@ -87,6 +87,12 @@ pub enum State {
         msg_id: MessageId,
     },
     Subscriptions {
+        msg_id: Option<MessageId>,
+    },
+    AddSubscriptions {
+        msg_id: Option<MessageId>,
+    },
+    DeleteSubscriptions {
         msg_id: Option<MessageId>,
     },
 }
@@ -208,7 +214,6 @@ pub mod users {
     //! After that, the whole workspace can be built using `cargo build`, but we need to run SQLx in offline mode:
     //! `export SQLX_OFFLINE=true`.
 
-    use crate::ShortBotDialogue;
     use serde::{Deserialize, Serialize};
     use std::{str::FromStr, sync::Arc};
     use teloxide::types::UserId;

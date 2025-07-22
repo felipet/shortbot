@@ -46,6 +46,17 @@ pub fn tickers_grid_keyboard(ibex_companies: &[IbexCompany]) -> InlineKeyboardMa
     keyboard_markup
 }
 
+pub(crate) fn small_buttons_grid_keyboard(tags: &[&str]) -> InlineKeyboardMarkup {
+    let mut keyboard_markup = InlineKeyboardMarkup::default();
+
+    for c in tags.chunks(BUTTONS_PER_ROW) {
+        keyboard_markup =
+            keyboard_markup.append_row(c.iter().map(|c| InlineKeyboardButton::callback(*c, *c)));
+    }
+
+    keyboard_markup
+}
+
 pub fn companies_keyboard(
     ibex_companies: &[IbexCompany],
     filter: Option<&str>,
@@ -87,7 +98,7 @@ pub fn companies_keyboard(
             keyboard_markup = keyboard_markup.append_row(
                 company
                     .iter()
-                    .map(|c| InlineKeyboardButton::callback(c.name(), c.name())),
+                    .map(|c| InlineKeyboardButton::callback(c.name(), c.ticker())),
             );
         }
 

@@ -79,7 +79,6 @@ pub async fn settings_callback(
     user_handler: Arc<UserHandler>,
     msg_id: MessageId,
 ) -> HandlerResult {
-    //let user = match &msg.from {
     let user_id = match dialogue.chat_id().as_user() {
         Some(id) => {
             debug!("User {} entered in the settings menu", id);
