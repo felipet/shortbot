@@ -25,13 +25,21 @@ pub fn configure_tracing(tracing_level: &str) {
         _ => (Level::TRACE, LevelFilter::TRACE),
     };
 
-    tracing_subscriber::registry()
-        .with(
-            fmt::layer()
-                .with_ansi(false)
-                .with_target(true)
-                .with_filter(tracing_levelfilter),
-        )
-        .with(Targets::new().with_target("shortbot", tracing_level))
-        .init();
+    if std::env::var("PRETTY_LOG").is_ok() {
+        println!("Using pretty log!");
+        tracing_subscriber::registry()
+            .with(fmt::layer().pretty().with_filter(tracing_levelfilter))
+            .with(Targets::new().with_target("shortbot", tracing_level))
+            .init();
+    } else {
+        tracing_subscriber::registry()
+            .with(
+                fmt::layer()
+                    .with_ansi(false)
+                    .with_target(false)
+                    .with_filter(tracing_levelfilter),
+            )
+            .with(Targets::new().with_target("shortbot", tracing_level))
+            .init();
+    }
 }
