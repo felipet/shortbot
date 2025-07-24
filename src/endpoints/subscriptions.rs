@@ -13,7 +13,9 @@
 //    limitations under the License.
 
 use crate::{
-    HandlerResult, ShortBotDialogue, ShortCache, State, endpoints, error_message,
+    HandlerResult, ShortBotDialogue, ShortCache, State, UserError,
+    endpoints::{self, helper::list_subscriptions},
+    error_message,
     keyboards::{small_buttons_grid_keyboard, subscriptions_keyboard, tickers_grid_keyboard},
     users::{Subscriptions, UserConfig, UserHandler, register_new_user, user_lang_code},
 };
@@ -54,7 +56,29 @@ pub async fn subscriptions_menu(
     };
     let lang_code = user_lang_code(&user_id, user_handler.clone(), None).await;
 
-    list_subscriptions(&bot, &dialogue, user_handler.clone(), user_id, true).await?;
+    match list_subscriptions(bot.clone(), &dialogue, user_handler.clone(), user_id).await {
+        Ok(_) => (),
+        Err(e) => match e.downcast_ref::<UserError>() {
+            Some(user_error) => match *user_error {
+                UserError::ClientNotRegistered => {
+                    info!("Found a new user of the bot, proceeding to the register");
+                    register_new_user(user_id, user_handler, Some(&lang_code)).await?;
+                }
+                _ => {
+                    bot.send_message(dialogue.chat_id(), error_message(&lang_code))
+                        .await?;
+                    error!("{e}");
+                    return Err(e);
+                }
+            },
+            None => {
+                bot.send_message(dialogue.chat_id(), error_message(&lang_code))
+                    .await?;
+                error!("{e}");
+                return Err(e);
+            }
+        },
+    }
 
     let msg_id = bot
         .send_message(
@@ -258,11 +282,11 @@ pub async fn show_subscriptions(
 ) -> HandlerResult {
     let user_id = match &msg.from {
         Some(user) => {
-            debug!("User {} entered in the brief handler", user.id);
+            debug!("User entered in the brief handler");
             user.id
         }
         None => {
-            error!("Settings menu called by a non-user of Telegram");
+            error!("Brief handler called by a non-user of Telegram");
             return Ok(());
         }
     };
@@ -273,83 +297,56 @@ pub async fn show_subscriptions(
     )
     .await;
 
-    // First: if the user is not registered, register him/her.
-    match register_new_user(user_id, user_handler.clone(), Some(lang_code)).await {
-        Ok(_) => debug!("User found in the DB"),
-        Err(e) => {
-            error!("Error found while registering a new user: {e}");
-            bot.send_message(msg.chat.id, error_message(lang_code))
-                .await?;
-            return Err(e);
+    match user_handler.subscriptions(&user_id).await {
+        Ok(subscriptions) => {
+            if let Some(subscriptions) = subscriptions {
+                bot.send_message(msg.chat.id, _brief_message(lang_code))
+                    .parse_mode(ParseMode::Html)
+                    .await?;
+                for subscription in subscriptions.into_iter() {
+                    endpoints::short_report(
+                        &bot,
+                        dialogue.chat_id(),
+                        short_cache.clone(),
+                        lang_code,
+                        &subscription,
+                    )
+                    .await?;
+                }
+            }
         }
+        Err(e) => match e.downcast_ref::<UserError>() {
+            Some(user_error) => match *user_error {
+                UserError::ClientNotRegistered => {
+                    info!("Found a new user of the bot, proceeding to the register");
+                    register_new_user(user_id, user_handler, Some(lang_code)).await?;
+                }
+                _ => {
+                    bot.send_message(dialogue.chat_id(), error_message(lang_code))
+                        .await?;
+                    error!("{e}");
+                    return Err(e);
+                }
+            },
+            None => {
+                bot.send_message(dialogue.chat_id(), error_message(lang_code))
+                    .await?;
+                error!("{e}");
+                return Err(e);
+            }
+        },
     }
 
-    // At this point, all users are registered.
-    if let Some(subscriptions) = user_handler.subscriptions(&user_id).await? {
-        bot.send_message(msg.chat.id, _brief_message(lang_code))
-            .parse_mode(ParseMode::Html)
-            .await?;
-        for subscription in subscriptions.into_iter() {
-            endpoints::short_report(
-                &bot,
-                dialogue.chat_id(),
-                short_cache.clone(),
-                lang_code,
-                &subscription,
-            )
-            .await?;
-        }
-    } else {
-        bot.send_message(
-            msg.chat.id,
-            if lang_code == "es" {
-                "❌ No tienes ninguna subscripción en este momento. Usa el comando /subscripciones para añadir."
-            } else {
-                "❌ You don't have any subscriptions at this moment. Use the /subscriptions command to add."
-            },
-        )
-        .disable_notification(true)
-        .await?;
-    }
-
-    Ok(())
-}
-
-pub(crate) async fn list_subscriptions(
-    bot: &Throttle<Bot>,
-    dialogue: &ShortBotDialogue,
-    user_handler: Arc<UserHandler>,
-    user_id: UserId,
-    _extended_info: bool,
-) -> HandlerResult {
-    let lang_code = user_lang_code(&user_id, user_handler.clone(), None).await;
-
-    if let Some(subscriptions) = user_handler.subscriptions(&user_id).await? {
-        bot.send_message(
-            dialogue.chat_id(),
-            if lang_code == "es" {
-                "💹 <b>Estas son tus subscripciones:</b>"
-            } else {
-                "💹 <b>These are your current subscriptions:</b>"
-            },
-        )
-        .parse_mode(ParseMode::Html)
-        .await?;
-        bot.send_message(dialogue.chat_id(), format!("{subscriptions}"))
-            .disable_notification(true)
-            .await?;
-    } else {
-        bot.send_message(
-            dialogue.chat_id(),
-            if lang_code == "es" {
-                "❌ No tienes ninguna subscripción en este momento."
-            } else {
-                "❌ You don't have any subscriptions at this moment"
-            },
-        )
-        .disable_notification(true)
-        .await?;
-    }
+    bot.send_message(
+        msg.chat.id,
+        if lang_code == "es" {
+            "❌ No tienes ninguna subscripción en este momento. Usa el comando /subscripciones para añadir."
+        } else {
+            "❌ You don't have any subscriptions at this moment. Use the /subscriptions command to add."
+        },
+    )
+    .disable_notification(true)
+    .await?;
 
     Ok(())
 }
