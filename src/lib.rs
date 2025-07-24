@@ -39,6 +39,7 @@ pub use shortcache::ShortCache;
 pub mod endpoints {
     mod default;
     mod help;
+    pub mod helper;
     mod liststocks;
     mod receivestock;
     mod settings;
