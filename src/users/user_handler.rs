@@ -26,7 +26,7 @@ use crate::{
     users::{BotAccess, Subscriptions, UserConfig, UserMeta},
 };
 use chrono::Utc;
-use redis::{AsyncCommands, aio::MultiplexedConnection};
+use redis::{AsyncCommands, RedisError, aio::MultiplexedConnection};
 use serde::Serialize;
 use std::error::Error;
 use teloxide::types::UserId;
@@ -143,17 +143,28 @@ impl UserHandler {
             .db_client
             .get_multiplexed_async_connection_with_config(&self.db_settings)
             .await?;
-        let is_registered = self.is_registered(user_id).await?;
 
-        if is_registered {
-            let json_meta: String = self.get(&mut con, user_id, ContentType::Meta).await?;
-            let meta: UserMeta = serde_json::from_str(&json_meta)
-                .map_err(|e| UserError::SerialisationError(e.to_string()))?;
-
-            Ok(meta.access_level)
-        } else {
-            debug!("Access level requested for a non-registered user");
-            Ok(BotAccess::Free)
+        // Don't check if the user exists, send a raw get and check for the error type in case the user was
+        // not registered.
+        match self.get(&mut con, user_id, ContentType::Meta).await {
+            Ok(json) => Ok(serde_json::from_str::<UserMeta>(&json)
+                .map_err(|e| UserError::SerialisationError(e.to_string()))?
+                .access_level),
+            Err(e) => match e.downcast_ref::<RedisError>() {
+                Some(redis_err) => {
+                    if redis_err.kind() == redis::ErrorKind::TypeError {
+                        warn!("Access level of non-registered user requested");
+                        Ok(BotAccess::Free)
+                    } else {
+                        error!("Error detected while checking user's access level: {e}");
+                        Err(e)
+                    }
+                }
+                None => {
+                    error!("Error detected while checking user's access level: {e}");
+                    Err(e)
+                }
+            },
         }
     }
 
@@ -164,8 +175,8 @@ impl UserHandler {
     /// This method is meant to be called anytime a handler of the bot is called from an user. On each call,
     /// the access time will get updated.
     ///
-    /// If the method is called using a client ID which wasn't registered before in the DB, it will call
-    /// the register method in auto-mode.
+    /// If the method is called using a client ID which wasn't registered, an error [UserError::ClientNotRegistered]
+    /// will be raised.
     pub async fn refresh_access(
         &self,
         user_id: &UserId,
@@ -174,19 +185,29 @@ impl UserHandler {
             .db_client
             .get_multiplexed_async_connection_with_config(&self.db_settings)
             .await?;
-        let is_registered = self.is_registered(user_id).await?;
 
-        if is_registered {
-            let json_meta: String = self.get(&mut con, user_id, ContentType::Meta).await?;
-            let mut meta: UserMeta = serde_json::from_str(&json_meta)
-                .map_err(|e| UserError::SerialisationError(e.to_string()))?;
-            meta.last_access = Utc::now();
-            self.set(&mut con, user_id, ContentType::Meta, meta).await?;
+        // If this fails, the user wasn't registered, raise an error.
+        match self.get(&mut con, user_id, ContentType::Meta).await {
+            Ok(json) => {
+                let mut meta: UserMeta = serde_json::from_str(&json)
+                    .map_err(|e| UserError::SerialisationError(e.to_string()))?;
+                meta.last_access = Utc::now();
+                self.set(&mut con, user_id, ContentType::Meta, meta).await?;
+                debug!("Access time refreshed for user: {user_id}");
+                Ok(())
+            }
+            Err(e) => match e.downcast_ref::<RedisError>() {
+                Some(redis_err) => {
+                    if redis_err.kind() == redis::ErrorKind::TypeError {
+                        error!("Attempt to refresh the access time of a non-registered user");
+                        Err(Box::new(UserError::ClientNotRegistered))
+                    } else {
+                        Err(e)
+                    }
+                }
+                None => Err(e),
+            },
         }
-
-        debug!("Access time refreshed for user: {user_id}");
-
-        Ok(())
     }
 
     /// Method that returns if a Telegram user is registered as a bot's user.
@@ -199,7 +220,7 @@ impl UserHandler {
             .get_multiplexed_async_connection_with_config(&self.db_settings)
             .await?;
 
-        debug!("Checking if the user {user_id} is registered");
+        debug!("Checking if the user is registered");
 
         Ok(con
             .exists(format!("shortbot:{}:{}", self.hash_id, user_id.0))
@@ -212,6 +233,7 @@ impl UserHandler {
         &self,
         user_id: &UserId,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        debug!("Proceed to register the user");
         let mut con = self
             .db_client
             .get_multiplexed_async_connection_with_config(&self.db_settings)
@@ -240,12 +262,16 @@ impl UserHandler {
             )
             .await?;
 
-        info!("New user {} registered", user_id.0);
+        info!("New user registered");
 
         Ok(())
     }
 
     /// Method that retrieves the subscriptions of the client.
+    ///
+    /// # Description
+    ///
+    /// If the user was not registered in the DB, an error [UserError::ClientNotRegistered] will be raised.
     pub async fn subscriptions(
         &self,
         user_id: &UserId,
@@ -255,21 +281,29 @@ impl UserHandler {
             .get_multiplexed_async_connection_with_config(&self.db_settings)
             .await?;
 
-        let is_registered = self.is_registered(user_id).await?;
-
-        if is_registered {
-            let json_meta = self.get(&mut con, user_id, ContentType::Meta).await?;
-            let meta: UserMeta = serde_json::from_str(&json_meta)
-                .map_err(|e| UserError::SerialisationError(e.to_string()))?;
-
-            Ok(meta.subscriptions)
-        } else {
-            debug!("Attempt to retrieve subscriptions from a non-registered user");
-            Ok(None)
+        match self.get(&mut con, user_id, ContentType::Meta).await {
+            Ok(json_meta) => Ok(serde_json::from_str::<UserMeta>(&json_meta)
+                .map_err(|e| UserError::SerialisationError(e.to_string()))?
+                .subscriptions),
+            Err(e) => match e.downcast_ref::<RedisError>() {
+                Some(redis_err) => {
+                    if redis_err.kind() == redis::ErrorKind::TypeError {
+                        error!("Attempt to get subscriptions of a non-registered user");
+                        Err(Box::new(UserError::ClientNotRegistered))
+                    } else {
+                        Err(e)
+                    }
+                }
+                None => Err(e),
+            },
         }
     }
 
     /// Method that adds tickers to the subscription list of the user.
+    ///
+    /// # Description
+    ///
+    /// If the user was not registered in the DB, an error [UserError::ClientNotRegistered] will be raised.
     pub async fn add_subscriptions(
         &self,
         user_id: &UserId,
@@ -280,28 +314,40 @@ impl UserHandler {
             .get_multiplexed_async_connection_with_config(&self.db_settings)
             .await?;
 
-        let is_registered = self.is_registered(user_id).await?;
+        match self.get(&mut con, user_id, ContentType::Meta).await {
+            Ok(json_meta) => {
+                let mut meta: UserMeta = serde_json::from_str(&json_meta)
+                    .map_err(|e| UserError::SerialisationError(e.to_string()))?;
 
-        if is_registered {
-            let json_meta = self.get(&mut con, user_id, ContentType::Meta).await?;
-            let mut meta: UserMeta = serde_json::from_str(&json_meta)
-                .map_err(|e| UserError::SerialisationError(e.to_string()))?;
+                info!("The user added new subscriptions: {subscriptions}");
+                if meta.subscriptions.is_none() {
+                    meta.subscriptions = Some(subscriptions);
+                } else {
+                    *meta.subscriptions.as_mut().unwrap() += subscriptions;
+                }
+                self.set(&mut con, user_id, ContentType::Meta, meta).await?;
 
-            if meta.subscriptions.is_none() {
-                meta.subscriptions = Some(subscriptions);
-            } else {
-                *meta.subscriptions.as_mut().unwrap() += subscriptions;
+                Ok(())
             }
-            self.set(&mut con, user_id, ContentType::Meta, meta).await?;
-            info!("The user added new subscriptions");
-        } else {
-            warn!("The user must register before adding subscriptions");
+            Err(e) => match e.downcast_ref::<RedisError>() {
+                Some(redis_err) => {
+                    if redis_err.kind() == redis::ErrorKind::TypeError {
+                        error!("Attempt to add subscriptions of a non-registered user");
+                        Err(Box::new(UserError::ClientNotRegistered))
+                    } else {
+                        Err(e)
+                    }
+                }
+                None => Err(e),
+            },
         }
-
-        Ok(())
     }
 
     /// Method that removes tickers from the subscription list of the client.
+    ///
+    /// # Description
+    ///
+    /// If the user was not registered in the DB, an error [UserError::ClientNotRegistered] will be raised.
     pub async fn remove_subscriptions(
         &self,
         user_id: &UserId,
@@ -312,31 +358,44 @@ impl UserHandler {
             .get_multiplexed_async_connection_with_config(&self.db_settings)
             .await?;
 
-        let is_registered = self.is_registered(user_id).await?;
+        match self.get(&mut con, user_id, ContentType::Meta).await {
+            Ok(json_meta) => {
+                let mut meta: UserMeta = serde_json::from_str(&json_meta)
+                    .map_err(|e| UserError::SerialisationError(e.to_string()))?;
 
-        if is_registered {
-            let json_meta = self.get(&mut con, user_id, ContentType::Meta).await?;
-            let mut meta: UserMeta = serde_json::from_str(&json_meta)
-                .map_err(|e| UserError::SerialisationError(e.to_string()))?;
+                if meta.subscriptions.is_none() {
+                    warn!("No subscriptions to remove");
+                } else {
+                    let subs = meta.subscriptions.as_mut().unwrap();
+                    *subs -= subscriptions;
 
-            if meta.subscriptions.is_none() {
-                warn!("Attempt to remove subscriptions from a non-registered user");
-            } else {
-                let subs = meta.subscriptions.as_mut().unwrap();
-                *subs -= subscriptions;
+                    if subs.is_empty() {
+                        meta.subscriptions = None;
+                    }
 
-                if subs.is_empty() {
-                    meta.subscriptions = None;
+                    self.set(&mut con, user_id, ContentType::Meta, meta).await?;
                 }
-
-                self.set(&mut con, user_id, ContentType::Meta, meta).await?;
+                Ok(())
             }
+            Err(e) => match e.downcast_ref::<RedisError>() {
+                Some(redis_err) => {
+                    if redis_err.kind() == redis::ErrorKind::TypeError {
+                        error!("Attempt to remove subscriptions of a non-registered user");
+                        Err(Box::new(UserError::ClientNotRegistered))
+                    } else {
+                        Err(e)
+                    }
+                }
+                None => Err(e),
+            },
         }
-
-        Ok(())
     }
 
     /// Method that modifies the access level of a client.
+    ///
+    /// # Description
+    ///
+    /// If the user was not registered in the DB, an error [UserError::ClientNotRegistered] will be raised.
     pub async fn modify_access_level(
         &self,
         user_id: &UserId,
@@ -347,22 +406,33 @@ impl UserHandler {
             .get_multiplexed_async_connection_with_config(&self.db_settings)
             .await?;
 
-        let is_registered = self.is_registered(user_id).await?;
-
-        if is_registered {
-            let json_meta = self.get(&mut con, user_id, ContentType::Meta).await?;
-            let mut meta: UserMeta = serde_json::from_str(&json_meta)
-                .map_err(|e| UserError::SerialisationError(e.to_string()))?;
-            meta.access_level = access;
-            self.set(&mut con, user_id, ContentType::Meta, meta).await?;
-        } else {
-            warn!("Attempt to modify access level of a non-registered user");
+        match self.get(&mut con, user_id, ContentType::Meta).await {
+            Ok(json_meta) => {
+                let mut meta: UserMeta = serde_json::from_str(&json_meta)
+                    .map_err(|e| UserError::SerialisationError(e.to_string()))?;
+                meta.access_level = access;
+                self.set(&mut con, user_id, ContentType::Meta, meta).await?;
+                Ok(())
+            }
+            Err(e) => match e.downcast_ref::<RedisError>() {
+                Some(redis_err) => {
+                    if redis_err.kind() == redis::ErrorKind::TypeError {
+                        error!("Attempt to modify access of a non-registered user");
+                        Err(Box::new(UserError::ClientNotRegistered))
+                    } else {
+                        Err(e)
+                    }
+                }
+                None => Err(e),
+            },
         }
-
-        Ok(())
     }
 
     /// Method that retrieves the user's config.
+    ///
+    /// # Description
+    ///
+    /// If the user was not registered in the DB, an error [UserError::ClientNotRegistered] will be raised.
     pub async fn user_config(
         &self,
         user_id: &UserId,
@@ -372,21 +442,28 @@ impl UserHandler {
             .get_multiplexed_async_connection_with_config(&self.db_settings)
             .await?;
 
-        let is_registered = self.is_registered(user_id).await?;
-
-        if is_registered {
-            let json_config = self.get(&mut con, user_id, ContentType::Config).await?;
-            let config: UserConfig = serde_json::from_str(&json_config)
-                .map_err(|e| UserError::SerialisationError(e.to_string()))?;
-
-            Ok(config)
-        } else {
-            warn!("Configuration requested for non-registered user");
-            Ok(UserConfig::default())
+        match self.get(&mut con, user_id, ContentType::Config).await {
+            Ok(json_config) => Ok(serde_json::from_str::<UserConfig>(&json_config)
+                .map_err(|e| UserError::SerialisationError(e.to_string()))?),
+            Err(e) => match e.downcast_ref::<RedisError>() {
+                Some(redis_err) => {
+                    if redis_err.kind() == redis::ErrorKind::TypeError {
+                        warn!("Returning default config for non-registered user");
+                        Ok(UserConfig::default())
+                    } else {
+                        Err(e)
+                    }
+                }
+                None => Err(e),
+            },
         }
     }
 
     /// Method that stores the user's config.
+    ///
+    /// # Description
+    ///
+    /// If the user was not registered in the DB, an error [UserError::ClientNotRegistered] will be raised.
     pub async fn modify_user_config(
         &self,
         user_id: &UserId,
@@ -403,12 +480,12 @@ impl UserHandler {
             let _: () = self
                 .set(&mut con, user_id, ContentType::Config, config)
                 .await?;
-            debug!("Settings modified for user {}", user_id.0);
+            debug!("User settings modified");
+            Ok(())
         } else {
             error!("Can't modify the settings of a non-registered user");
+            Err(Box::new(UserError::ClientNotRegistered))
         }
-
-        Ok(())
     }
 
     /// Method that returns a list of users of the bot
