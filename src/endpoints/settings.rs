@@ -14,7 +14,7 @@
 
 //! Handler for the /settings command.
 
-use crate::{HandlerResult, ShortBotDialogue, State, users::UserHandler};
+use crate::{HandlerResult, ShortBotDialogue, State, endpoints, users::UserHandler};
 use std::sync::Arc;
 use teloxide::{
     adaptors::Throttle,
@@ -79,15 +79,11 @@ pub async fn settings_callback(
     user_handler: Arc<UserHandler>,
     msg_id: MessageId,
 ) -> HandlerResult {
-    let user_id = match dialogue.chat_id().as_user() {
-        Some(id) => {
-            debug!("User {} entered in the settings menu", id);
-            id
-        }
-        None => {
-            error!("Settings menu called by a non-user of Telegram");
-            return Ok(());
-        }
+    let user_id = if let Some(user_id) = dialogue.chat_id().as_user() {
+        user_id
+    } else {
+        error!("Brief handler called by a non-user of Telegram");
+        return Ok(());
     };
 
     bot.answer_callback_query(query.id).await?;
@@ -96,7 +92,15 @@ pub async fn settings_callback(
 
     match callback_choice.as_str() {
         "subscriptions" => {
-            todo!()
+            debug!("Moving to subscriptions menu");
+            bot.edit_message_text(
+                dialogue.chat_id(),
+                msg_id,
+                "🎛️ <b><ins>Subscriptions menu</ins></b>",
+            )
+            .parse_mode(ParseMode::Html)
+            .await?;
+            endpoints::subscriptions_menu(bot.clone(), dialogue, user_handler.clone()).await?;
         }
         "plan" => {
             check_user_plan(&bot, &dialogue, user_handler, user_id).await?;
@@ -106,8 +110,7 @@ pub async fn settings_callback(
             dialogue.exit().await?
         }
         _ => {
-            bot.send_message(dialogue.chat_id(), "*Option not implemented*")
-                .disable_notification(true)
+            bot.edit_message_text(dialogue.chat_id(), msg_id, "*Option not implemented*")
                 .parse_mode(ParseMode::MarkdownV2)
                 .await?;
             dialogue.exit().await?;
