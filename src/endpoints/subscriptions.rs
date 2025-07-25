@@ -268,39 +268,30 @@ pub async fn subscriptions_callback(
 
 #[tracing::instrument(
     name = "Brief handler",
-    skip(bot, msg, short_cache, user_handler),
+    skip(bot, dialogue, short_cache, user_handler),
     fields(
-        chat_id = %msg.chat.id,
+        chat_id = %dialogue.chat_id(),
     )
 )]
 pub async fn show_subscriptions(
     bot: Throttle<Bot>,
-    msg: Message,
     dialogue: ShortBotDialogue,
     short_cache: Arc<ShortCache>,
     user_handler: Arc<UserHandler>,
 ) -> HandlerResult {
-    let user_id = match &msg.from {
-        Some(user) => {
-            debug!("User entered in the brief handler");
-            user.id
-        }
-        None => {
-            error!("Brief handler called by a non-user of Telegram");
-            return Ok(());
-        }
+    let user_id = if let Some(user_id) = dialogue.chat_id().as_user() {
+        user_id
+    } else {
+        error!("Brief handler called by a non-user of Telegram");
+        return Ok(());
     };
-    let lang_code = &user_lang_code(
-        &user_id,
-        user_handler.clone(),
-        msg.from.unwrap().language_code,
-    )
-    .await;
+
+    let lang_code = &user_lang_code(&user_id, user_handler.clone(), None).await;
 
     match user_handler.subscriptions(&user_id).await {
         Ok(subscriptions) => {
             if let Some(subscriptions) = subscriptions {
-                bot.send_message(msg.chat.id, _brief_message(lang_code))
+                bot.send_message(dialogue.chat_id(), _brief_message(lang_code))
                     .parse_mode(ParseMode::Html)
                     .await?;
                 for subscription in subscriptions.into_iter() {
@@ -313,6 +304,17 @@ pub async fn show_subscriptions(
                     )
                     .await?;
                 }
+            } else {
+                bot.send_message(
+                    dialogue.chat_id(),
+                    if lang_code == "es" {
+                        "❌ No tienes ninguna subscripción en este momento. Usa el comando /subscripciones para añadir."
+                    } else {
+                        "❌ You don't have any subscriptions at this moment. Use the /subscriptions command to add."
+                    },
+                )
+                .disable_notification(true)
+                .await?;
             }
         }
         Err(e) => match e.downcast_ref::<UserError>() {
@@ -336,17 +338,6 @@ pub async fn show_subscriptions(
             }
         },
     }
-
-    bot.send_message(
-        msg.chat.id,
-        if lang_code == "es" {
-            "❌ No tienes ninguna subscripción en este momento. Usa el comando /subscripciones para añadir."
-        } else {
-            "❌ You don't have any subscriptions at this moment. Use the /subscriptions command to add."
-        },
-    )
-    .disable_notification(true)
-    .await?;
 
     Ok(())
 }
