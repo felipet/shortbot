@@ -440,9 +440,14 @@ pub(crate) async fn delete_subscriptions(
             })
             .await?;
     } else {
-        bot.send_message(
+        bot.edit_message_text(
             dialogue.chat_id(),
-            "¡No tienes subscripciones que eliminar!",
+            msg_id,
+            if lang_code == "es" {
+                "¡No tienes subscripciones que eliminar!"
+            } else {
+                "You don't have any subscription at the moment."
+            },
         )
         .await?;
         dialogue.exit().await?;
