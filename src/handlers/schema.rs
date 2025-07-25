@@ -48,6 +48,7 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
             .branch(case![CommandSpa::Ayuda].endpoint(help))
             .branch(case![CommandSpa::Short].endpoint(list_stocks))
             .branch(case![CommandSpa::Apoyo].endpoint(support))
+            .branch(case![CommandSpa::Configuracion].endpoint(settings))
             .branch(case![CommandSpa::Subscripciones].endpoint(subscriptions_menu))
             .branch(case![CommandSpa::Resumen].endpoint(show_subscriptions)),
     );
