@@ -14,34 +14,40 @@
 
 //! Handler for the /support command.
 
-use crate::HandlerResult;
+use crate::{
+    HandlerResult,
+    users::{UserHandler, user_lang_code},
+};
+use std::sync::Arc;
 use teloxide::{adaptors::Throttle, prelude::*, types::ParseMode};
-use tracing::{debug, info};
+use tracing::error;
 
 /// Support handler.
 #[tracing::instrument(
     name = "Support handler",
-    skip(bot, msg),
+    skip(bot, msg, user_handler),
     fields(
         chat_id = %msg.chat.id,
     )
 )]
-pub async fn support(bot: Throttle<Bot>, msg: Message) -> HandlerResult {
-    info!("Command /support requested");
-
+pub async fn support(
+    bot: Throttle<Bot>,
+    msg: Message,
+    user_handler: Arc<UserHandler>,
+) -> HandlerResult {
     // First, try to retrieve the user of the chat.
-    let lang_code = match msg.from {
-        Some(user) => user.language_code.clone(),
-        None => None,
+    let user_id = match &msg.from {
+        Some(user) => user.id,
+        None => {
+            error!("A non-user of Telegram is attempting to use the bot");
+            return Ok(());
+        }
     };
 
-    debug!("The user's language code is: {:?}", lang_code);
+    let lang_code = user_lang_code(&user_id, user_handler.clone(), None).await;
 
-    let message = match lang_code {
-        Some(lang_code) => match lang_code.as_str() {
-            "es" => _support_es(),
-            _ => _support_en(),
-        },
+    let message = match lang_code.as_str() {
+        "es" => _support_es(),
         _ => _support_en(),
     };
 
