@@ -62,14 +62,8 @@ pub async fn help(
 
 fn subscriptions_help(lang_code: &str) -> String {
     match lang_code {
-        "es" => format!(
-            "{}",
-            include_str!("../../data/templates/help_subscriptions_es.txt")
-        ),
-        _ => format!(
-            "{}",
-            include_str!("../../data/templates/help_subscriptions_en.txt")
-        ),
+        "es" => include_str!("../../data/templates/help_subscriptions_es.txt").to_string(),
+        _ => include_str!("../../data/templates/help_subscriptions_en.txt").to_string(),
     }
 }
 
