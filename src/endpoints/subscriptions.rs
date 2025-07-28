@@ -427,7 +427,7 @@ pub(crate) async fn delete_subscriptions(
         Ok(s) => s,
         Err(e) => {
             error!("Error found while retrieving user's subscriptions: {e}");
-            bot.send_message(dialogue.chat_id(), error_message(&lang_code))
+            bot.send_message(dialogue.chat_id(), error_message(lang_code))
                 .await?;
             return Ok(());
         }
@@ -502,7 +502,7 @@ pub(crate) async fn clear_subscriptions(
         Ok(s) => s,
         Err(e) => {
             error!("Error found while retrieving the subscriptions of the user: {e}");
-            bot.send_message(dialogue.chat_id(), error_message(&lang_code))
+            bot.send_message(dialogue.chat_id(), error_message(lang_code))
                 .await?;
             dialogue.exit().await?;
             return Ok(());
@@ -516,7 +516,7 @@ pub(crate) async fn clear_subscriptions(
 
         if let Err(e) = error {
             error!("Error found while removing subscriptions of the user: {e}");
-            bot.send_message(dialogue.chat_id(), error_message(&lang_code))
+            bot.send_message(dialogue.chat_id(), error_message(lang_code))
                 .await?;
             dialogue.exit().await?;
             return Ok(());
