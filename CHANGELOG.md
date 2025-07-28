@@ -58,3 +58,18 @@
 ### Changed
 
 - The user's schema in Valkey was extended to add a section for configuration parameters.
+
+## [0.7.0] - 2025-07-28
+
+### Added
+
+- New menu to select stocks based on names rather than tickers.
+- Keyboards module.
+- New command /brief.
+- New menu to handle subscriptions
+
+### Changed
+
+- Handlers read the user's language from the user's settings rather than from Telegram's API.
+- The /help command accepts arguments to access different sections within the help menu.
+- The format of the log messages has been improved to reduce redundant information. A new option to show pretty log messages for debugging has been added.
