@@ -14,19 +14,23 @@
 
 //! Handler for the /settings command.
 
-use crate::{HandlerResult, ShortBotDialogue, State, endpoints, users::UserHandler};
+use crate::{
+    HandlerResult, ShortBotDialogue, State, endpoints,
+    keyboards::*,
+    users::{UserHandler, user_lang_code},
+};
 use std::sync::Arc;
 use teloxide::{
     adaptors::Throttle,
     prelude::*,
-    types::{InlineKeyboardButton, InlineKeyboardMarkup, MessageId, ParseMode},
+    types::{MessageId, ParseMode},
 };
 use tracing::{debug, error};
 
 /// Start handler.
 #[tracing::instrument(
     name = "Settings handler",
-    skip(bot, msg, dialogue),
+    skip(bot, msg, dialogue, user_handler),
     fields(
         chat_id = %msg.chat.id,
     )
@@ -35,26 +39,32 @@ pub async fn settings(
     bot: Throttle<Bot>,
     msg: Message,
     dialogue: ShortBotDialogue,
+    user_handler: Arc<UserHandler>,
 ) -> HandlerResult {
-    let keyboard = InlineKeyboardMarkup::default()
-        .append_row(vec![InlineKeyboardButton::callback(
-            "📺 Display settings".to_string(),
-            "display_main",
-        )])
-        .append_row(vec![InlineKeyboardButton::callback(
-            "📰 My subscriptions".to_string(),
-            "subscriptions",
-        )])
-        .append_row(vec![InlineKeyboardButton::callback(
-            "🧾 My plan".to_string(),
-            "plan",
-        )]);
+    let user_id = match dialogue.chat_id().as_user() {
+        Some(user_id) => user_id,
+        None => {
+            error!("Subscriptions command called by a non-user");
+            return Ok(());
+        }
+    };
+    let lang_code = &user_lang_code(&user_id, user_handler.clone(), None).await;
 
     let msg_id = bot
-        .send_message(msg.chat.id, "🎛️ <b><ins>Settings menu</ins></b>")
-        .parse_mode(teloxide::types::ParseMode::Html)
+        .send_message(
+            msg.chat.id,
+            format!(
+                "🎛️ <b><ins>{}</ins></b>",
+                if lang_code == "es" {
+                    "Menú de ajustes"
+                } else {
+                    "Settings menu"
+                }
+            ),
+        )
+        .parse_mode(ParseMode::Html)
         .disable_notification(true)
-        .reply_markup(keyboard)
+        .reply_markup(settings_keyboard(lang_code))
         .await?
         .id;
 
@@ -85,6 +95,7 @@ pub async fn settings_callback(
         error!("Brief handler called by a non-user of Telegram");
         return Ok(());
     };
+    let lang_code = &user_lang_code(&user_id, user_handler.clone(), None).await;
 
     bot.answer_callback_query(query.id).await?;
 
@@ -96,7 +107,14 @@ pub async fn settings_callback(
             bot.edit_message_text(
                 dialogue.chat_id(),
                 msg_id,
-                "🎛️ <b><ins>Subscriptions menu</ins></b>",
+                format!(
+                    "🎛️ <b><ins>{}</ins></b>",
+                    if lang_code == "es" {
+                        "Gestionar subscripciones"
+                    } else {
+                        "Subscriptions menu"
+                    }
+                ),
             )
             .parse_mode(ParseMode::Html)
             .await?;
@@ -126,9 +144,10 @@ async fn check_user_plan(
     user_handler: Arc<UserHandler>,
     user_id: UserId,
 ) -> HandlerResult {
+    let lang_code = &user_lang_code(&user_id, user_handler.clone(), None).await;
     let access_level = user_handler.access_level(&user_id).await?;
 
-    bot.send_message(dialogue.chat_id(), "Your current subscription plan is:")
+    bot.send_message(dialogue.chat_id(), subscription_plan_msg(lang_code))
         .disable_notification(true)
         .await?;
 
@@ -136,14 +155,29 @@ async fn check_user_plan(
         .disable_notification(true)
         .await?;
 
-    bot.send_message(
-        dialogue.chat_id(),
-        "If you need more information about subscription plans, please use the command /plans",
-    )
-    .disable_notification(true)
-    .await?;
+    bot.send_message(dialogue.chat_id(), subscription_extra_msg(lang_code))
+        .disable_notification(true)
+        .await?;
 
     dialogue.exit().await?;
 
     Ok(())
+}
+
+fn subscription_plan_msg(lang_code: &str) -> String {
+    let msg = match lang_code {
+        "es" => "Tu plan de acceso al bot es:",
+        _ => "Your current subscription plan is:",
+    };
+
+    msg.to_owned()
+}
+
+fn subscription_extra_msg(lang_code: &str) -> String {
+    let msg = match lang_code {
+        "es" => "Para más información acerca de los planes de acceso, usa el comando /planes",
+        _ => "If you need more information about subscription plans, please use the command /plans",
+    };
+
+    msg.to_owned()
 }

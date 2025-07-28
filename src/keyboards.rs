@@ -169,3 +169,40 @@ pub fn subscriptions_keyboard(lang_code: &str) -> InlineKeyboardMarkup {
             "exit",
         )])
 }
+
+pub fn settings_keyboard(lang_code: &str) -> InlineKeyboardMarkup {
+    InlineKeyboardMarkup::default()
+        .append_row(vec![InlineKeyboardButton::callback(
+            format!(
+                "📺 {}",
+                if lang_code == "es" {
+                    "Configuración de visualización"
+                } else {
+                    "Display settings"
+                }
+            ),
+            "display_main",
+        )])
+        .append_row(vec![InlineKeyboardButton::callback(
+            format!(
+                "📰 {}",
+                if lang_code == "es" {
+                    "Mis subscripciones"
+                } else {
+                    "My subscriptions"
+                }
+            ),
+            "subscriptions",
+        )])
+        .append_row(vec![InlineKeyboardButton::callback(
+            format!(
+                "🧾 {}",
+                if lang_code == "es" {
+                    "Mi nivel de acceso"
+                } else {
+                    "My plan"
+                }
+            ),
+            "plan",
+        )])
+}
