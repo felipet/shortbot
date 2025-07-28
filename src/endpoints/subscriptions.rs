@@ -16,7 +16,7 @@ use crate::{
     HandlerResult, ShortBotDialogue, ShortCache, State, UserError,
     endpoints::{self, helper::list_subscriptions},
     error_message,
-    keyboards::{small_buttons_grid_keyboard, subscriptions_keyboard, tickers_grid_keyboard},
+    keyboards::*,
     users::{Subscriptions, UserConfig, UserHandler, register_new_user, user_lang_code},
 };
 use std::sync::Arc;
@@ -190,26 +190,42 @@ pub async fn subscriptions_callback(
                         if let Some(msg_id) = msg_id {
                             if let Err(e) = result {
                                 error!("Error found: {e}");
-                                bot.edit_message_text(dialogue.chat_id(), msg_id, "Error found while adding your new subscription. Try again later.").await?;
+                                bot.edit_message_text(
+                                    dialogue.chat_id(),
+                                    msg_id,
+                                    error_message(&lang_code),
+                                )
+                                .await?;
                             } else {
                                 bot.edit_message_text(
                                     dialogue.chat_id(),
                                     msg_id,
-                                    format!("{callback_payload} added to your subscriptions"),
+                                    format!(
+                                        "{callback_payload} {}",
+                                        if lang_code == "es" {
+                                            "añadido a tus subscripciones"
+                                        } else {
+                                            "added to your subscriptions"
+                                        }
+                                    ),
                                 )
                                 .await?;
                             }
                         } else if let Err(e) = result {
                             error!("Error found: {e}");
-                            bot.send_message(
-                                dialogue.chat_id(),
-                                "Error found while adding your new subscription. Try again later.",
-                            )
-                            .await?;
+                            bot.send_message(dialogue.chat_id(), error_message(&lang_code))
+                                .await?;
                         } else {
                             bot.send_message(
                                 dialogue.chat_id(),
-                                format!("{callback_payload} added to your subscriptions"),
+                                format!(
+                                    "{callback_payload} {}",
+                                    if lang_code == "es" {
+                                        "añadido a tus subscripciones"
+                                    } else {
+                                        "added to your subscriptions"
+                                    }
+                                ),
                             )
                             .await?;
                         }
@@ -228,25 +244,39 @@ pub async fn subscriptions_callback(
                                 bot.edit_message_text(
                                     dialogue.chat_id(),
                                     msg_id,
-                                    _error_found(&lang_code),
+                                    error_message(&lang_code),
                                 )
                                 .await?;
                             } else {
                                 bot.edit_message_text(
                                     dialogue.chat_id(),
                                     msg_id,
-                                    format!("{callback_payload} removed from your subscriptions"),
+                                    format!(
+                                        "{callback_payload} {}",
+                                        if lang_code == "es" {
+                                            "eliminado de tus subscripciones"
+                                        } else {
+                                            "removed from your subscriptions"
+                                        }
+                                    ),
                                 )
                                 .await?;
                             }
                         } else if let Err(e) = result {
                             error!("Error found: {e}");
-                            bot.send_message(dialogue.chat_id(), _error_found(&lang_code))
+                            bot.send_message(dialogue.chat_id(), error_message(&lang_code))
                                 .await?;
                         } else {
                             bot.send_message(
                                 dialogue.chat_id(),
-                                format!("{callback_payload} removed from your subscriptions"),
+                                format!(
+                                    "{callback_payload} {}",
+                                    if lang_code == "es" {
+                                        "eliminado de tus subscripciones"
+                                    } else {
+                                        "removed from your subscriptions"
+                                    }
+                                ),
                             )
                             .await?;
                         }
@@ -397,7 +427,7 @@ pub(crate) async fn delete_subscriptions(
         Ok(s) => s,
         Err(e) => {
             error!("Error found while retrieving user's subscriptions: {e}");
-            bot.send_message(dialogue.chat_id(), _error_found(lang_code))
+            bot.send_message(dialogue.chat_id(), error_message(&lang_code))
                 .await?;
             return Ok(());
         }
@@ -472,7 +502,7 @@ pub(crate) async fn clear_subscriptions(
         Ok(s) => s,
         Err(e) => {
             error!("Error found while retrieving the subscriptions of the user: {e}");
-            bot.send_message(dialogue.chat_id(), _error_message(lang_code))
+            bot.send_message(dialogue.chat_id(), error_message(&lang_code))
                 .await?;
             dialogue.exit().await?;
             return Ok(());
@@ -486,7 +516,7 @@ pub(crate) async fn clear_subscriptions(
 
         if let Err(e) = error {
             error!("Error found while removing subscriptions of the user: {e}");
-            bot.send_message(dialogue.chat_id(), _error_message(lang_code))
+            bot.send_message(dialogue.chat_id(), error_message(&lang_code))
                 .await?;
             dialogue.exit().await?;
             return Ok(());
@@ -508,13 +538,6 @@ pub(crate) async fn clear_subscriptions(
     Ok(())
 }
 
-fn _error_message(lang_code: &str) -> &str {
-    match lang_code {
-        "es" => "🚒 Ha ocurrido un error, por favor, inténtalo más tarde",
-        _ => "🚒 An error was found, please try again later",
-    }
-}
-
 fn _select_ticker_message(lang_code: &str) -> String {
     match lang_code {
         "es" => String::from("Selecciona un ticker:"),
@@ -533,13 +556,6 @@ fn _select_starting_letter(lang_code: &str) -> String {
     match lang_code {
         "es" => String::from("Selecciona la letra por la que empieza el nombre de la empresa:"),
         _ => String::from("Choose the starting letter for the company's name:"),
-    }
-}
-
-fn _error_found(lang_code: &str) -> String {
-    match lang_code {
-        "es" => String::from("👩‍🔧 Se ha detectado un error. Inténtalo de nuevo más tarde."),
-        _ => String::from("👩‍🔧 An error ocurred. Please, try again later."),
     }
 }
 
