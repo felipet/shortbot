@@ -1,0 +1,7 @@
+📖 <b>Help for the subscription handling</b>
+
+Shorbot keeps you updated when a stock of the Ibex35 gets or updates a short position.
+
+In order to receive updates, you'll need to subscribe some stocks. Use the command /subscriptions to add or remove stocks to your subscription list.
+
+Moreover, the command /brief is available to print the current status of your subscribed stocks.

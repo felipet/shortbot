@@ -8,4 +8,7 @@ Además, se ofrece un listado con los nombres de los fondos que tienen abiertas 
 
 🔎 Las actualizaciones al regulador se realizan una vez al día, por lo que los valores reportados no cambiaran, como mínimo, hasta el día siguiente.
 
+La sección de <i>ayuda</i> incluye otras páginas. Para consultarlas, utiliza el comando /ayuda seguido del nombre de la sección que deseas consultar:
+- /ayuda subscripciones -> Mensaje de ayuda para la gestión de subscripciones.
+
 👨‍🔧 El bot se encuentra en desarrollo, y ¡pronto aparecerán nuevas funcionalidades! Si encuentras un problema, o quieres proponer alguna funcionalidad nueva, ¡suscríbete al canal de Telegram @ibexshortbot_channel!

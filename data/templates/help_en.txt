@@ -6,7 +6,9 @@ The information is retrieved from CNMV's web page.
 
 Moreover, it is detailed a full list of all the individual short positions, including the % of the position compared to the capital of the company, and the date at which the position was notified to the regulator.
 
-🔎 Updates to the regulator are given once per day, thus open positions won't change
-until the next day (at least).
+🔎 Updates to the regulator are given once per day, thus open positions won't change until the next day (at least).
+
+The <i>help</i> section includes other pages, call the command /help followed by one of this sections:
+- /help subscriptions -> To read the help message for handling subscriptions.
 
 👨‍🔧 This bot is under development, and new features will be released soon! If you find a bug, or you'd like to propose a new feature, please subscribe to the @ibexshortbot_channel channel in Telegram.

@@ -14,42 +14,70 @@
 
 //! Handler for the /help command.
 
-use crate::{CommandEng, CommandSpa, HandlerResult};
+use crate::{
+    CommandEng, CommandSpa, HandlerResult,
+    users::{UserHandler, user_lang_code},
+};
+use std::sync::Arc;
 use teloxide::{adaptors::Throttle, prelude::*, types::ParseMode, utils::command::BotCommands};
-use tracing::{debug, info};
+use tracing::error;
 
 /// Help handler.
 #[tracing::instrument(
     name = "Help handler",
-    skip(bot, msg),
+    skip(bot, msg, user_handler),
     fields(
         chat_id = %msg.chat.id,
     )
 )]
-pub async fn help(bot: Throttle<Bot>, msg: Message) -> HandlerResult {
-    info!("Command /help requested");
-
+pub async fn help(
+    bot: Throttle<Bot>,
+    msg: Message,
+    user_handler: Arc<UserHandler>,
+) -> HandlerResult {
     // First, try to retrieve the user of the chat.
-    let lang_code = match msg.from {
-        Some(user) => user.language_code.clone(),
-        None => None,
+    let user_id = match &msg.from {
+        Some(user) => user.id,
+        None => {
+            error!("A non-user of Telegram is attempting to use the bot");
+            return Ok(());
+        }
+    };
+    let lang_code = &user_lang_code(&user_id, user_handler.clone(), None).await;
+    let help_section = help_section(msg.text());
+
+    let help_msg = match help_section {
+        "subscription" | "subscriptions" | "subscripciones" | "subscripcion" => {
+            subscriptions_help(lang_code)
+        }
+        _ => main_help(lang_code),
     };
 
-    debug!("The user's language code is: {:?}", lang_code);
-
-    let message = match lang_code {
-        Some(lang_code) => match lang_code.as_str() {
-            "es" => _help_es(),
-            _ => _help_en(),
-        },
-        _ => _help_en(),
-    };
-
-    bot.send_message(msg.chat.id, message)
+    bot.send_message(msg.chat.id, help_msg)
         .parse_mode(ParseMode::Html)
         .await?;
 
     Ok(())
+}
+
+fn subscriptions_help(lang_code: &str) -> String {
+    match lang_code {
+        "es" => format!(
+            "{}",
+            include_str!("../../data/templates/help_subscriptions_es.txt")
+        ),
+        _ => format!(
+            "{}",
+            include_str!("../../data/templates/help_subscriptions_en.txt")
+        ),
+    }
+}
+
+fn main_help(lang_code: &str) -> String {
+    match lang_code {
+        "es" => _help_es(),
+        _ => _help_en(),
+    }
 }
 
 /// Help handler (English version).
@@ -68,4 +96,15 @@ fn _help_es() -> String {
         include_str!("../../data/templates/help_es.txt"),
         CommandSpa::descriptions(),
     )
+}
+
+fn help_section(msg: Option<&str>) -> &str {
+    if let Some(msg) = msg {
+        match msg.split(" ").last() {
+            Some(section) => section.trim_end(),
+            None => "main",
+        }
+    } else {
+        "main"
+    }
 }

@@ -1,0 +1,7 @@
+📖 <b>Ayuda para la gestión de subscripciones</b>
+
+Shortbot puede avisarte cuando un valor del Ibex35 reciba o actualice sus posiciones en corto.
+
+Para gestionar tus subscripciones, utiliza el comando /subscripciones . Desde el menú puedes añadir y eliminar tus subscripciones.
+
+Además, puedes usar el comando /resumen para ver un resumen de las posiciones en corto para los valores que sigues.

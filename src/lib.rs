@@ -108,8 +108,8 @@ pub enum State {
 pub enum CommandEng {
     #[command(description = "Start a new session")]
     Start,
-    #[command(description = "Display help message")]
-    Help,
+    #[command(description = "Display help message", parse_with = "split")]
+    Help { section: String },
     #[command(description = "Check short position of a stock")]
     Short,
     #[command(description = "Show support information")]
@@ -133,8 +133,8 @@ pub enum CommandEng {
 pub enum CommandSpa {
     #[command(description = "Iniciar una nueva sesión")]
     Inicio,
-    #[command(description = "Mostrar la ayuda")]
-    Ayuda,
+    #[command(description = "Mostrar la ayuda", parse_with = "split")]
+    Ayuda { section: String },
     #[command(description = "Consultar posiciones de una acción")]
     Short,
     #[command(description = "Mostrar información de apoyo")]

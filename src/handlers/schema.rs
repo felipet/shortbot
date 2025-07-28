@@ -34,7 +34,7 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
     let command_handler_eng = teloxide::filter_command::<CommandEng, _>().branch(
         case![State::Start]
             .branch(case![CommandEng::Start].endpoint(start))
-            .branch(case![CommandEng::Help].endpoint(help))
+            .branch(case![CommandEng::Help { section }].endpoint(help))
             .branch(case![CommandEng::Short].endpoint(list_stocks))
             .branch(case![CommandEng::Support].endpoint(support))
             .branch(case![CommandEng::Settings].endpoint(settings))
@@ -45,7 +45,7 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
     let command_handler_spa = teloxide::filter_command::<CommandSpa, _>().branch(
         case![State::Start]
             .branch(case![CommandSpa::Inicio].endpoint(start))
-            .branch(case![CommandSpa::Ayuda].endpoint(help))
+            .branch(case![CommandSpa::Ayuda { section }].endpoint(help))
             .branch(case![CommandSpa::Short].endpoint(list_stocks))
             .branch(case![CommandSpa::Apoyo].endpoint(support))
             .branch(case![CommandSpa::Configuracion].endpoint(settings))
