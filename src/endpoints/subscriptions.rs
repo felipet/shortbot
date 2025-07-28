@@ -282,7 +282,7 @@ pub async fn subscriptions_callback(
                         }
                     }
                     _ => {
-                        info!("How the hell I reached this point?");
+                        error!("Missing FMS state in the subscription callback");
                     }
                 }
             } else if let Some(msg_id) = msg_id {
