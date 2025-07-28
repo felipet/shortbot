@@ -14,40 +14,63 @@
 
 //! Handler for the /start command.
 
-use crate::HandlerResult;
+use crate::{
+    HandlerResult,
+    users::{UserHandler, register_new_user, user_lang_code},
+};
+use std::sync::Arc;
 use teloxide::{adaptors::Throttle, prelude::*};
-use tracing::{debug, info};
+use tracing::{error, info};
 
 /// Start handler.
+///
+/// # Description
+///
+/// This handler is usually called once when a new user enters a chat with the Bot. For that reason, the following
+/// actions are performed:
+///
+/// - Try to detect the user's preferred language.
+/// - Register the user as an user of the Bot.
+/// - Set the language preferences.
 #[tracing::instrument(
     name = "Start handler",
-    skip(bot, msg),
+    skip(bot, msg, user_handler),
     fields(
         chat_id = %msg.chat.id,
     )
 )]
-pub async fn start(bot: Throttle<Bot>, msg: Message) -> HandlerResult {
-    info!("Command /start requested");
-
+pub async fn start(
+    bot: Throttle<Bot>,
+    msg: Message,
+    user_handler: Arc<UserHandler>,
+) -> HandlerResult {
     let client_name = get_client_name(&msg);
 
     // Let's ry to retrieve the user of the chat.
-    let lang_code = match &msg.from {
-        Some(user) => user.language_code.clone(),
-        None => None,
+    let (lang_code, user_id) = match &msg.from {
+        Some(user) => (user.language_code.clone(), user.id),
+        None => {
+            error!("A non-user of Telegram is attempting to use the bot");
+            return Ok(());
+        }
     };
 
-    debug!("The user's language code is: {:?}", lang_code);
+    match register_new_user(user_id, user_handler.clone(), lang_code.as_deref()).await {
+        Ok(_) => info!("A new user started to use the Bot"),
+        Err(e) => error!("Error found while attempting to register a new user: {e}"),
+    }
 
-    let message = match lang_code {
-        Some(lang_code) => match lang_code.as_str() {
-            "es" => _start_es(&client_name),
-            _ => _start_en(&client_name),
+    let lang_code = user_lang_code(&user_id, user_handler.clone(), None).await;
+
+    bot.send_message(
+        msg.chat.id,
+        if lang_code == "es" {
+            _start_es(&client_name)
+        } else {
+            _start_en(&client_name)
         },
-        _ => _start_en(&client_name),
-    };
-
-    bot.send_message(msg.chat.id, message).await?;
+    )
+    .await?;
 
     Ok(())
 }
