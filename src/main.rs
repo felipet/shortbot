@@ -14,7 +14,7 @@
 
 //! Main file of the Shortbot
 
-use axum::{Router, routing::get};
+use axum::{Router, routing::post};
 use secrecy::ExposeSecret;
 use shortbot::{
     CommandEng, CommandSpa, State, WebServerState, configuration::Settings, endpoints, handlers,
@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let main_router: Router<()> = Router::new()
-        .route("/webhook", get(endpoints::webhook::webhook_handler))
+        .route("/webhook", post(endpoints::webhook::webhook_handler))
         .with_state(state);
 
     let http_server_address = SocketAddr::from_str(&format!(
