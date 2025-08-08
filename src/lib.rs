@@ -24,6 +24,7 @@ use teloxide::{
     types::MessageId,
     utils::command::BotCommands,
 };
+use tokio::sync::mpsc::Sender;
 
 pub mod configuration;
 pub mod errors;
@@ -31,8 +32,14 @@ pub mod keyboards;
 pub mod shortcache;
 pub mod telemetry;
 
-pub(crate) use errors::error_message;
-pub use errors::{DbError, UserError};
+pub mod prelude {
+    pub use crate::UPDATE_BUFFER_SIZE;
+    pub use crate::errors::error_message;
+    pub use crate::errors::{DbError, UserError};
+    pub use crate::{CommandEng, CommandSpa, State, WebServerState};
+}
+
+pub use errors::{DbError, UserError, error_message};
 pub use shortcache::ShortCache;
 
 // Bring all the endpoints to the main context.
@@ -326,10 +333,13 @@ pub mod users {
     }
 }
 
+pub const UPDATE_BUFFER_SIZE: usize = 5;
+
 /// Shared state for handlers of the Axum web server.
 #[derive(Clone)]
 pub struct WebServerState {
     pub user_handler: Arc<UserHandler>,
     pub bot: Throttle<Bot>,
     pub webhook_token: SecretString,
+    pub update_buffer_tx: Sender<String>,
 }
