@@ -14,11 +14,11 @@
 
 //! Main file of the Shortbot
 
-use axum::{Router, routing::post};
+use axum::{Router, middleware, routing::post};
 use secrecy::ExposeSecret;
 use shortbot::{
-    CommandEng, CommandSpa, State, WebServerState, configuration::Settings, endpoints, handlers,
-    telemetry::configure_tracing, users::UserHandler,
+    CommandEng, CommandSpa, State, WebServerState, configuration::Settings, endpoints::webhook,
+    handlers, telemetry::configure_tracing, users::UserHandler,
 };
 use std::{net::SocketAddr, process::exit, str::FromStr, sync::Arc};
 use teloxide::{
@@ -60,7 +60,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let main_router: Router<()> = Router::new()
-        .route("/webhook", post(endpoints::webhook::webhook_handler))
+        .route("/webhook", post(webhook::webhook_handler))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            webhook::auth_client,
+        ))
         .with_state(state);
 
     let http_server_address = SocketAddr::from_str(&format!(

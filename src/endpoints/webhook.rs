@@ -38,7 +38,7 @@
 //!
 //! ```bash
 //! curl -X GET 'http://localhost:9602/adm/webhook' \
-//!   -H 'Authorization: Basic token' \
+//!   -H 'Authorization: Basic <token>' \
 //!   -H 'Content-Type: application/json' \
 //!   -d '{"req_type":"BroadcastAllMessage","req_payload":"{\"message_en\":\"Eng message\",\"message_es\":\"Spa message\"}"}'
 //! ```
@@ -46,10 +46,13 @@
 use crate::{WebServerState, errors::BotError, users::UserConfig};
 use axum::{
     Json,
-    extract::State,
-    http::{HeaderName, header::HeaderMap},
+    extract::{Request, State},
+    http::{HeaderName, StatusCode, header::HeaderMap},
+    middleware::Next,
+    response::Response,
 };
-use secrecy::{ExposeSecret, SecretString};
+use chrono::{DateTime, Utc};
+use secrecy::ExposeSecret;
 use serde::Deserialize;
 use teloxide::{
     prelude::*,
@@ -61,6 +64,7 @@ use tracing::{debug, error, info, warn};
 pub enum RequestType {
     BroadcastAllMessage,
     BroadcastSilentMessage,
+    ShortUpdate,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -75,59 +79,71 @@ pub struct BroadcastMessage {
     pub message_es: String,
 }
 
-fn auth_client(headers: HeaderMap, token: &SecretString) -> Result<(), BotError> {
+#[derive(Debug, Clone, Deserialize)]
+pub struct ShortUpdateForm {
+    pub timestamp: DateTime<Utc>,
+    pub payload: String,
+}
+
+pub async fn auth_client(
+    State(state): State<WebServerState>,
+    headers: HeaderMap,
+    request: Request,
+    next: Next,
+) -> Result<Response, StatusCode> {
     let raw_token = match headers.get(HeaderName::from_lowercase(b"authorization").unwrap()) {
         Some(header) => header,
         None => {
             warn!("Webhook request received without authentication token");
-            return Err(BotError::MissingCredentials);
+            return Err(StatusCode::UNAUTHORIZED);
         }
     };
 
     let (auth_type, token_client) = match raw_token.to_str() {
-        Ok(r) => (
-            r.split(" ").collect::<Vec<_>>()[0],
-            r.split(" ").collect::<Vec<_>>()[1],
-        ),
-        Err(_) => return Err(BotError::InvalidToken),
+        Ok(r) => {
+            let split = r.split(" ").collect::<Vec<_>>();
+
+            if split.len() < 2 {
+                error!("Invalid authorization schema provided");
+                return Err(StatusCode::UNAUTHORIZED);
+            }
+
+            (split[0], split[1])
+        }
+        Err(_) => return Err(StatusCode::UNAUTHORIZED),
     };
 
     if !auth_type.eq_ignore_ascii_case("basic") {
         error!("Invalid authorization schema provided ({auth_type})");
-        return Err(BotError::WrongCredentials);
+        return Err(StatusCode::UNAUTHORIZED);
     }
 
-    if token.expose_secret() != token_client {
+    if state.webhook_token.expose_secret() != token_client {
         error!("Invalid authorization token provided");
-        return Err(BotError::WrongCredentials);
+        return Err(StatusCode::UNAUTHORIZED);
     }
 
-    Ok(())
+    Ok(next.run(request).await)
 }
 
 pub async fn webhook_handler(
-    headers: HeaderMap,
     State(state): State<WebServerState>,
     Json(payload): Json<WebhookRequest>,
-) -> Result<String, BotError> {
-    info!("Webhook request received to send a broadcast message");
-    debug!("Broadcast message: {}", payload.req_payload.clone());
-
-    // Check the credentials of the client.
-    auth_client(headers, &state.webhook_token)?;
-
-    let (message_es, message_en) =
-        match serde_json::from_str::<BroadcastMessage>(&payload.req_payload) {
-            Ok(m) => (m.message_es, m.message_en),
-            Err(e) => {
-                error!("Error while deserialising the broadcast message: {e}");
-                return Err(BotError::WrongMessageFormat);
-            }
-        };
+) -> Result<Response<String>, BotError> {
+    info!("Webhook request received");
 
     if payload.req_type == RequestType::BroadcastAllMessage
         || payload.req_type == RequestType::BroadcastSilentMessage
     {
+        debug!("Broadcast message request received");
+        let (message_es, message_en) =
+            match serde_json::from_str::<BroadcastMessage>(&payload.req_payload) {
+                Ok(m) => (m.message_es, m.message_en),
+                Err(e) => {
+                    error!("Error while deserializing the broadcast message: {e}");
+                    return Err(BotError::WrongMessageFormat);
+                }
+            };
         let users_list = match state
             .user_handler
             .list_users(payload.req_type == RequestType::BroadcastAllMessage)
@@ -165,9 +181,21 @@ pub async fn webhook_handler(
                 error!("Error while sending broadcast message to user {user}: {e}");
             }
         }
+    } else if payload.req_type == RequestType::ShortUpdate {
+        debug!("Short update webhook request received");
+
+        let form = serde_json::from_str::<ShortUpdateForm>(&payload.req_payload).map_err(|e| {
+            error!("Error while deserializing the webhook payload: {e}");
+            BotError::WrongMessageFormat
+        })?;
+        info!("The update list is: {}", form.payload);
+        //TODO: perform the update
     } else {
         warn!("Webhook feature not implemented");
     }
 
-    Ok("Broadcast message sent successfully".to_owned())
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .body("Webhook request successfully executed".to_owned())
+        .unwrap())
 }
