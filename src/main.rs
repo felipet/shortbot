@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     configure_tracing(settings.tracing_level.as_str());
 
     // Initialize the short cache.
-    let short_cache = shortbot::ShortCache::connect_backend(&settings.database).await?;
+    let short_cache = Arc::new(shortbot::ShortCache::connect_backend(&settings.database).await?);
 
     // Set up the user's metadata DB.
     let user_handler = match UserHandler::new(&settings.users_db).await {
@@ -57,7 +57,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (update_buffer_tx, update_buffer_rx) = mpsc::channel::<String>(UPDATE_BUFFER_SIZE);
 
     // Updates thread
-    handlers::update_handler(bot.clone(), update_buffer_rx).await?;
+    handlers::update_handler(
+        bot.clone(),
+        user_handler.clone(),
+        short_cache.clone(),
+        update_buffer_rx,
+    )
+    .await?;
 
     // Build an Axum HTTP server.
     let state = WebServerState {
@@ -127,7 +133,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Dispatcher::builder(bot, handlers::schema())
         .dependencies(dptree::deps![
-            Arc::new(short_cache),
+            short_cache,
             user_handler,
             InMemStorage::<State>::new()
         ])
