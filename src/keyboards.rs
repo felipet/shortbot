@@ -62,19 +62,8 @@ pub fn companies_keyboard(
     filter: Option<&str>,
 ) -> InlineKeyboardMarkup {
     // Build a keyboard of capital letters.
-    if filter.is_none() {
+    if let Some(filter) = filter {
         let mut keyboard_markup = InlineKeyboardMarkup::default();
-
-        for c in starting_char_grid(ibex_companies).chunks(BUTTONS_PER_ROW) {
-            keyboard_markup =
-                keyboard_markup.append_row(c.iter().map(|c| InlineKeyboardButton::callback(c, c)));
-        }
-
-        keyboard_markup
-    // Build a keyboard of company names
-    } else {
-        let mut keyboard_markup = InlineKeyboardMarkup::default();
-        let filter = filter.unwrap();
 
         // We push companies to the new keyboard whose first letter is equal to `filter` or, if the company's name
         // includes a white space, whose first letter of the last word of the name is equal to `filter`.
@@ -100,6 +89,15 @@ pub fn companies_keyboard(
                     .iter()
                     .map(|c| InlineKeyboardButton::callback(c.name(), c.ticker())),
             );
+        }
+
+        keyboard_markup
+    } else {
+        let mut keyboard_markup = InlineKeyboardMarkup::default();
+
+        for c in starting_char_grid(ibex_companies).chunks(BUTTONS_PER_ROW) {
+            keyboard_markup =
+                keyboard_markup.append_row(c.iter().map(|c| InlineKeyboardButton::callback(c, c)));
         }
 
         keyboard_markup

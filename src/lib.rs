@@ -318,13 +318,13 @@ pub mod users {
         if !user_handler.is_registered(&user_id).await? {
             trace!("The user was not registered. Proceeding to register");
             user_handler.register_user(&user_id).await?;
-            if let Some(lang_code) = lang_code {
-                if lang_code == "es" {
-                    trace!("Using language Spanish as default for the user");
-                    let mut user_cfg = user_handler.user_config(&user_id).await?;
-                    user_cfg.lang_code = "es".to_owned();
-                    user_handler.modify_user_config(&user_id, user_cfg).await?;
-                }
+            if let Some(lang_code) = lang_code
+                && lang_code == "es"
+            {
+                trace!("Using language Spanish as default for the user");
+                let mut user_cfg = user_handler.user_config(&user_id).await?;
+                user_cfg.lang_code = "es".to_owned();
+                user_handler.modify_user_config(&user_id, user_cfg).await?;
             }
             trace!("User successfully registered in the DB");
         } else {

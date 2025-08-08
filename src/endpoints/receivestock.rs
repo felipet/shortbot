@@ -95,9 +95,7 @@ pub(crate) async fn short_report(
     let positions = short_cache.short_position(ticker).await;
     debug!("Received AliveShortPositions: {:?}", positions);
 
-    if positions.is_ok() {
-        let shorts = positions.unwrap();
-
+    if let Ok(shorts) = positions {
         if shorts.positions.is_empty() {
             bot.send_message(chat_id, _no_shorts_msg(lang_code))
                 .parse_mode(ParseMode::Html)
