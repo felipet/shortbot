@@ -59,9 +59,13 @@ impl IntoResponse for BotError {
             BotError::WrongCredentials => (StatusCode::UNAUTHORIZED, "Wrong credentials"),
             BotError::MissingCredentials => (StatusCode::BAD_REQUEST, "Missing credentials"),
             BotError::InvalidToken => (StatusCode::BAD_REQUEST, "Invalid token"),
-            BotError::WrongMessageFormat | BotError::InternalServerError => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "Token creation error")
+            BotError::WrongMessageFormat => {
+                (StatusCode::BAD_REQUEST, "Wrong format of the payload")
             }
+            BotError::InternalServerError => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Wrong format of the payload",
+            ),
         };
         let body = Json(serde_json::json!({
             "error": error_message,
