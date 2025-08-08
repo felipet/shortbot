@@ -36,7 +36,7 @@ pub fn configure_tracing(tracing_level: &str) {
             .with(
                 fmt::layer()
                     .with_ansi(false)
-                    .with_target(false)
+                    .with_target(true)
                     .with_filter(tracing_levelfilter),
             )
             .with(Targets::new().with_target("shortbot", tracing_level))
