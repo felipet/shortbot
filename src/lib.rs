@@ -68,8 +68,10 @@ pub mod endpoints {
 // Bring all the handlers to the main context.
 pub mod handlers {
     mod schema;
+    mod updates_handler;
 
     pub use schema::*;
+    pub use updates_handler::*;
 }
 
 type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;

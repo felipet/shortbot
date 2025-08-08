@@ -189,7 +189,14 @@ pub async fn webhook_handler(
             BotError::WrongMessageFormat
         })?;
         info!("The update list is: {}", form.payload);
-        //TODO: perform the update
+        state
+            .update_buffer_tx
+            .send(format!("upd:{}", form.payload))
+            .await
+            .map_err(|e| {
+                error!("Error found while sending request to the update handler: {e}");
+                BotError::InternalServerError
+            })?;
     } else {
         warn!("Webhook feature not implemented");
     }

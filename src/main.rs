@@ -16,9 +16,10 @@
 
 use axum::{Router, middleware, routing::post};
 use secrecy::ExposeSecret;
+use shortbot::prelude::*;
 use shortbot::{
-    CommandEng, CommandSpa, State, WebServerState, configuration::Settings, endpoints::webhook,
-    handlers, telemetry::configure_tracing, users::UserHandler,
+    configuration::Settings, endpoints::webhook, handlers, telemetry::configure_tracing,
+    users::UserHandler,
 };
 use std::{net::SocketAddr, process::exit, str::FromStr, sync::Arc};
 use teloxide::{
@@ -26,7 +27,7 @@ use teloxide::{
     payloads::SetMyCommandsSetters, prelude::*, requests::RequesterExt, update_listeners::webhooks,
     utils::command::BotCommands,
 };
-use tokio::net::TcpListener;
+use tokio::{net::TcpListener, sync::mpsc};
 use tracing::{debug, error, info};
 
 #[tokio::main]
@@ -52,11 +53,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Instance a throttled bot, to avoid reaching the message limits when broadcast messages are sent.
     let bot = Bot::new(settings.application.api_token.expose_secret()).throttle(Limits::default());
 
+    // MPSC channel to trigger short position updates to users with subscriptions.
+    let (update_buffer_tx, update_buffer_rx) = mpsc::channel::<String>(UPDATE_BUFFER_SIZE);
+
+    // Updates thread
+    handlers::update_handler(bot.clone(), update_buffer_rx).await?;
+
     // Build an Axum HTTP server.
     let state = WebServerState {
         user_handler: user_handler.clone(),
         bot: bot.clone(),
         webhook_token: settings.application.webhook_token,
+        update_buffer_tx,
     };
 
     let main_router: Router<()> = Router::new()
