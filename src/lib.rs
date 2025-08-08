@@ -48,6 +48,7 @@ pub mod endpoints {
     mod help;
     pub mod helper;
     mod liststocks;
+    mod plans;
     mod receivestock;
     mod settings;
     mod start;
@@ -58,6 +59,7 @@ pub mod endpoints {
     pub use default::default;
     pub use help::help;
     pub use liststocks::{list_stock_by_name, list_stocks};
+    pub use plans::plans;
     pub(crate) use receivestock::{receive_stock, short_report};
     pub use settings::{settings, settings_callback};
     pub use start::start;
