@@ -204,3 +204,9 @@ pub fn settings_keyboard(lang_code: &str) -> InlineKeyboardMarkup {
             "plan",
         )])
 }
+
+pub fn language_selection_keyboard() -> InlineKeyboardMarkup {
+    InlineKeyboardMarkup::default()
+        .append_row(vec![InlineKeyboardButton::callback("Español", "es")])
+        .append_row(vec![InlineKeyboardButton::callback("English", "en")])
+}
