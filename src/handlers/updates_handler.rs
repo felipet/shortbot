@@ -131,12 +131,13 @@ async fn notify_users(
     user_list: Vec<(UserId, Subscriptions)>,
     tickers: Subscriptions,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    for ticker in tickers {
-        for (user, user_subscriptions) in user_list.iter() {
-            debug!("Processing updates for the ticker {ticker}");
-            if user_subscriptions.is_subscribed(&[&ticker]) {
+    let ticker_list = tickers.into_iter().collect::<Vec<_>>();
+
+    for (user, user_subscriptions) in user_list {
+        for ticker in ticker_list.iter() {
+            if user_subscriptions.is_subscribed(&[ticker]) {
                 debug!("Sending notification to the user {}", user.0);
-                let lang_code = &user_lang_code(user, user_handler.clone(), None).await;
+                let lang_code = &user_lang_code(&user, user_handler.clone(), None).await;
                 let chat_id = ChatId(user.0 as i64);
                 // Will be the casting an issue? Why they chose unsigned types for User's ID whilst signed for Chat's
                 // IDs? A total nonsense.
@@ -144,7 +145,7 @@ async fn notify_users(
                     .parse_mode(ParseMode::Html)
                     .await?;
 
-                short_report(&bot, chat_id, short_cache.clone(), lang_code, &ticker).await?;
+                short_report(&bot, chat_id, short_cache.clone(), lang_code, ticker).await?;
             }
         }
     }
