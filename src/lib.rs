@@ -61,7 +61,7 @@ pub mod endpoints {
     pub use liststocks::{list_stock_by_name, list_stocks};
     pub use plans::plans;
     pub(crate) use receivestock::{receive_stock, short_report};
-    pub use settings::{settings, settings_callback};
+    pub use settings::{language_selection_callback, settings, settings_callback};
     pub use start::start;
     pub use subscriptions::{show_subscriptions, subscriptions_callback, subscriptions_menu};
     pub use support::support;
@@ -107,6 +107,9 @@ pub enum State {
     },
     DeleteSubscriptions {
         msg_id: Option<MessageId>,
+    },
+    LanguageSelection {
+        msg_id: MessageId,
     },
 }
 

@@ -67,7 +67,8 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
         .branch(case![State::Settings { msg_id }].endpoint(settings_callback))
         .branch(case![State::Subscriptions { msg_id }].endpoint(subscriptions_callback))
         .branch(case![State::AddSubscriptions { msg_id }].endpoint(subscriptions_callback))
-        .branch(case![State::DeleteSubscriptions { msg_id }].endpoint(subscriptions_callback));
+        .branch(case![State::DeleteSubscriptions { msg_id }].endpoint(subscriptions_callback))
+        .branch(case![State::LanguageSelection { msg_id }].endpoint(language_selection_callback));
 
     dialogue::enter::<Update, InMemStorage<State>, State, _>()
         .branch(message_handler)

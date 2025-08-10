@@ -92,7 +92,7 @@ pub async fn settings_callback(
     let user_id = if let Some(user_id) = dialogue.chat_id().as_user() {
         user_id
     } else {
-        error!("Brief handler called by a non-user of Telegram");
+        error!("Settings handler called by a non-user of Telegram");
         return Ok(());
     };
     let lang_code = &user_lang_code(&user_id, user_handler.clone(), None).await;
@@ -126,6 +126,9 @@ pub async fn settings_callback(
         "exit" => {
             bot.delete_message(dialogue.chat_id(), msg_id).await?;
             dialogue.exit().await?
+        }
+        "display_main" => {
+            change_display_settings(&bot, &dialogue, user_handler, user_id, msg_id).await?;
         }
         _ => {
             bot.edit_message_text(dialogue.chat_id(), msg_id, "*Option not implemented*")
@@ -164,6 +167,83 @@ async fn check_user_plan(
     Ok(())
 }
 
+async fn change_display_settings(
+    bot: &Throttle<Bot>,
+    dialogue: &ShortBotDialogue,
+    user_handler: Arc<UserHandler>,
+    user_id: UserId,
+    msg_id: MessageId,
+) -> HandlerResult {
+    let lang_code = &user_lang_code(&user_id, user_handler.clone(), None).await;
+
+    let msg_id = bot
+        .edit_message_text(dialogue.chat_id(), msg_id, lang_selecion(lang_code))
+        .parse_mode(ParseMode::Html)
+        .reply_markup(language_selection_keyboard())
+        .await?
+        .id;
+
+    dialogue.update(State::LanguageSelection { msg_id }).await?;
+
+    Ok(())
+}
+
+#[tracing::instrument(
+    name = "Language callback handler",
+    skip(bot, dialogue, query, user_handler, msg_id),
+    fields(
+        chat_id = %dialogue.chat_id(),
+    )
+)]
+pub async fn language_selection_callback(
+    bot: Throttle<Bot>,
+    dialogue: ShortBotDialogue,
+    query: CallbackQuery,
+    user_handler: Arc<UserHandler>,
+    msg_id: MessageId,
+) -> HandlerResult {
+    let user_id = if let Some(user_id) = dialogue.chat_id().as_user() {
+        user_id
+    } else {
+        error!("Language handler called by a non-user of Telegram");
+        return Ok(());
+    };
+
+    bot.answer_callback_query(query.id).await?;
+
+    let callback_choice = query.data.unwrap();
+
+    let mut user_config = user_handler.user_config(&user_id).await?;
+
+    match callback_choice.as_str() {
+        "es" => {
+            user_config.lang_code = "es".to_string();
+        }
+        _ => {
+            user_config.lang_code = "en".to_string();
+        }
+    }
+
+    user_handler
+        .modify_user_config(&user_id, user_config)
+        .await?;
+
+    bot.edit_message_text(
+        dialogue.chat_id(),
+        msg_id,
+        if callback_choice.as_str() == "es" {
+            "Idioma configurado correctamente"
+        } else {
+            "Language set to English"
+        },
+    )
+    .await?;
+
+    dialogue.exit().await?;
+
+    Ok(())
+}
+
 fn subscription_plan_msg(lang_code: &str) -> String {
     let msg = match lang_code {
         "es" => "Tu plan de acceso al bot es:",
@@ -177,6 +257,15 @@ fn subscription_extra_msg(lang_code: &str) -> String {
     let msg = match lang_code {
         "es" => "Para más información acerca de los planes de acceso, usa el comando /planes",
         _ => "If you need more information about subscription plans, please use the command /plans",
+    };
+
+    msg.to_owned()
+}
+
+fn lang_selecion(lang_code: &str) -> String {
+    let msg = match lang_code {
+        "es" => "🗣️ <b>Escoge el idioma para los mensajes del Bot:</b>",
+        _ => "🗣️ <b>Choose the language of the menus:</b>",
     };
 
     msg.to_owned()
