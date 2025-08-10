@@ -28,7 +28,7 @@
 
 //! Handler for the /help command.
 
-use crate::{HandlerResult, UserHandler, users::user_lang_code};
+use crate::{HandlerResult, ShortBotDialogue, UserHandler, users::user_lang_code};
 use std::sync::Arc;
 use teloxide::{adaptors::Throttle, prelude::*, types::ParseMode};
 use tracing::{error, info};
@@ -36,7 +36,7 @@ use tracing::{error, info};
 /// Help handler.
 #[tracing::instrument(
     name = "Default handler",
-    skip(bot, msg, user_handler),
+    skip(bot, msg, dialogue, user_handler),
     fields(
         chat_id = %msg.chat.id,
     )
@@ -44,6 +44,7 @@ use tracing::{error, info};
 pub async fn default(
     bot: Throttle<Bot>,
     msg: Message,
+    dialogue: ShortBotDialogue,
     user_handler: Arc<UserHandler>,
 ) -> HandlerResult {
     info!("Garbage sent: {:?}", msg.text());
@@ -67,6 +68,9 @@ pub async fn default(
     bot.send_message(msg.chat.id, message)
         .parse_mode(ParseMode::Html)
         .await?;
+
+    // Cancel pending transitions.
+    dialogue.exit().await?;
 
     Ok(())
 }
