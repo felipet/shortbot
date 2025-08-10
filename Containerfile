@@ -1,6 +1,6 @@
 # Build stage ---------------
 
-FROM docker.io/rust:1.85.0 AS builder
+FROM docker.io/rust:1.88.0 AS builder
 
 WORKDIR /app
 COPY . .
@@ -9,7 +9,7 @@ RUN cargo build --release
 
 # Runtime stage -------------
 
-FROM docker.io/rust:1.85.0-slim-bookworm AS runtime
+FROM docker.io/rust:1.88.0-slim-bookworm AS runtime
 WORKDIR /app
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends openssl ca-certificates \
