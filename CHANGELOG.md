@@ -73,3 +73,14 @@
 - Handlers read the user's language from the user's settings rather than from Telegram's API.
 - The /help command accepts arguments to access different sections within the help menu.
 - The format of the log messages has been improved to reduce redundant information. A new option to show pretty log messages for debugging has been added.
+
+## [0.8.0] - 2025-08-10
+
+### Added
+
+- A handler that receives a list of tickers whose short positions received updates and notifies users.
+
+### Changed
+
+- The webhook handler accepts requests to notify short position updates.
+- The settings handler completed the display settings.

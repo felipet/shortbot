@@ -22,6 +22,7 @@ really annoying checking positions.
 - Multilingual support for Spanish and English users.
 - Simple check of alive short positions for every stock company of the Ibex35.
 - Handle subscriptions to stocks to send messages to users after a short position update.
+- Subscriptions to stocks to receive notifications when a short positions is updated.
 
 ## Usage
 
