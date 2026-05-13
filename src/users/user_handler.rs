@@ -320,11 +320,12 @@ impl UserHandler {
                     .map_err(|e| UserError::SerialisationError(e.to_string()))?;
 
                 info!("The user added new subscriptions: {subscriptions}");
-                if meta.subscriptions.is_none() {
-                    meta.subscriptions = Some(subscriptions);
+                if let Some(subs) = &mut meta.subscriptions {
+                    *subs += subscriptions;
                 } else {
-                    *meta.subscriptions.as_mut().unwrap() += subscriptions;
+                    meta.subscriptions = Some(subscriptions);
                 }
+
                 self.set(&mut con, user_id, ContentType::Meta, meta).await?;
 
                 Ok(())
