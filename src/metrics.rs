@@ -28,6 +28,11 @@ pub fn setup_metrics() -> Result<PrometheusHandle, BuildError> {
         .install_recorder();
 
     describe_counter!("users_count", "Total number of users of the bot");
+    describe_counter!(
+        "user_requests",
+        "Total number of requests made by an user idenfiying stocks"
+    );
+    describe_counter!("short_requests", "Total number of requests per stock");
 
     recorder
 }

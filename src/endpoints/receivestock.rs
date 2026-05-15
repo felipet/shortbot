@@ -19,6 +19,7 @@ use crate::{
     users::{UserHandler, user_lang_code},
 };
 use data_harvest::domain::AliveShortPositions;
+use metrics::counter;
 use std::sync::Arc;
 use teloxide::{
     adaptors::Throttle,
@@ -59,6 +60,10 @@ pub async fn receive_stock(
         }
     };
     let lang_code = &user_lang_code(&user_id, user_handler.clone(), None).await;
+
+    counter!("short_requests", "user_id" => user_id.to_string()).increment(1);
+    counter!("user_requests", "user_id" => user_id.to_string()).increment(1);
+    counter!("stock_requests", "stock" => ticker.to_string()).increment(1);
 
     match short_report(&bot, dialogue.chat_id(), short_cache, lang_code, ticker).await {
         Ok(_) => info!("Short positions successfully reported"),
