@@ -84,3 +84,10 @@
 
 - The webhook handler accepts requests to notify short position updates.
 - The settings handler completed the display settings.
+
+## [0.8.1] - 2026-05-15
+
+### Added
+
+- Add support for Prometheus metrics.
+- Expose some usage metrics at `/adm/metrics`.
