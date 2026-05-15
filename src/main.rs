@@ -14,7 +14,10 @@
 
 //! Main file of the Shortbot
 
-use axum::{Router, middleware, routing::post};
+use axum::{
+    Router, middleware,
+    routing::{get, post},
+};
 use secrecy::ExposeSecret;
 use shortbot::prelude::*;
 use shortbot::{
@@ -37,6 +40,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize the tracing subsystem.
     configure_tracing(settings.tracing_level.as_str());
+    // Initialize the metrics exporter.
+    let (metrics_handle, metrics_upkeep_task) = match setup_metrics() {
+        Ok(handle) => {
+            let upkeep_task = spawn_metrics_upkeep_task(handle.clone());
+            debug!("Metrics upkeep task spawned");
+            (handle, upkeep_task)
+        }
+        Err(e) => {
+            error!("Failed to setup metrics: {e}");
+            exit(70)
+        }
+    };
 
     // Initialize the short cache.
     let short_cache = Arc::new(shortbot::ShortCache::connect_backend(&settings.database).await?);
@@ -73,12 +88,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         update_buffer_tx,
     };
 
-    let main_router: Router<()> = Router::new()
+    let webook_router = Router::new()
         .route("/webhook", post(webhook::webhook_handler))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             webhook::auth_client,
-        ))
+        ));
+
+    let main_router = Router::new()
+        .route(
+            "/metrics",
+            get(move || async move { metrics_handle.render() }),
+        )
+        .merge(webook_router)
         .with_state(state);
 
     let http_server_address = SocketAddr::from_str(&format!(
@@ -142,6 +164,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .dispatch_with_listener(listener, LoggingErrorHandler::with_custom_text("shortbot"))
         .await;
 
+    metrics_upkeep_task.abort();
     info!("Gracefully closed ShortBot server");
 
     Ok(())

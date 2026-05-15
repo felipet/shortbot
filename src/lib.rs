@@ -29,6 +29,7 @@ use tokio::sync::mpsc::Sender;
 pub mod configuration;
 pub mod errors;
 pub mod keyboards;
+pub mod metrics;
 pub mod shortcache;
 pub mod telemetry;
 
@@ -36,6 +37,7 @@ pub mod prelude {
     pub use crate::UPDATE_BUFFER_SIZE;
     pub use crate::errors::error_message;
     pub use crate::errors::{DbError, UserError};
+    pub use crate::metrics::*;
     pub use crate::{CommandEng, CommandSpa, State, WebServerState};
 }
 
