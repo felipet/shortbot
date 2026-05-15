@@ -14,6 +14,7 @@
 
 //! Module with the logic for metrics.
 
+use metrics::describe_counter;
 use metrics_exporter_prometheus::{BuildError, PrometheusBuilder, PrometheusHandle};
 use tokio::task::JoinHandle;
 
@@ -22,9 +23,13 @@ const UPKEEP_INTERVAL: u64 = 30;
 
 /// Configures the metrics exporter and yields a handle for an axum router.
 pub fn setup_metrics() -> Result<PrometheusHandle, BuildError> {
-    PrometheusBuilder::new()
+    let recorder = PrometheusBuilder::new()
         .with_recommended_naming(true)
-        .install_recorder()
+        .install_recorder();
+
+    describe_counter!("users_count", "Total number of users of the bot");
+
+    recorder
 }
 
 pub fn spawn_metrics_upkeep_task(metrics_handle: PrometheusHandle) -> JoinHandle<()> {

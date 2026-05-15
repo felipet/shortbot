@@ -18,6 +18,7 @@ use crate::{
     HandlerResult,
     users::{UserHandler, register_new_user, user_lang_code},
 };
+use metrics::counter;
 use std::sync::Arc;
 use teloxide::{adaptors::Throttle, prelude::*};
 use tracing::{error, info};
@@ -54,6 +55,8 @@ pub async fn start(
             return Ok(());
         }
     };
+
+    counter!("users_count").increment(1);
 
     match register_new_user(user_id, user_handler.clone(), lang_code.as_deref()).await {
         Ok(_) => info!("A new user started to use the Bot"),
