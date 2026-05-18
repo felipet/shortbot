@@ -59,6 +59,8 @@ pub enum ServiceError {
     WebServerInitError(String),
     #[error("Failed to initialize the bot web server: {0}")]
     BotInitError(String),
+    #[error("Unexpected error: {0}")]
+    UnexpectedError(String),
 }
 
 impl IntoResponse for BotError {

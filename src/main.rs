@@ -15,6 +15,7 @@
 //! Main file of the Shortbot
 
 use secrecy::ExposeSecret;
+use shortbot::errors::ServiceError;
 use shortbot::prelude::*;
 use shortbot::webserver::{setup_bot_router, setup_webserver};
 use shortbot::{
@@ -22,10 +23,12 @@ use shortbot::{
 };
 use std::{process::exit, sync::Arc};
 use teloxide::{
-    adaptors::throttle::Limits, dispatching::dialogue::InMemStorage,
+    adaptors::throttle::Limits, dispatching::ShutdownToken, dispatching::dialogue::InMemStorage,
     payloads::SetMyCommandsSetters, prelude::*, requests::RequesterExt,
     utils::command::BotCommands,
 };
+use tokio::signal::unix::{SignalKind, signal};
+use tokio::task::JoinHandle;
 use tracing::{debug, error, info};
 
 #[tokio::main]
@@ -40,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(handle) => {
             let upkeep_task = spawn_metrics_upkeep_task(handle.clone());
             debug!("Metrics upkeep task spawned");
-            (handle, upkeep_task)
+            (handle, Arc::new(upkeep_task))
         }
         Err(e) => {
             error!("Failed to setup metrics: {e}");
@@ -103,19 +106,46 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Dispatching");
 
-    Dispatcher::builder(bot, handlers::schema())
+    let mut dispatcher = Dispatcher::builder(bot, handlers::schema())
         .dependencies(dptree::deps![
             short_cache,
             user_handler,
             InMemStorage::<State>::new()
         ])
         .enable_ctrlc_handler()
-        .build()
+        .build();
+
+    // Launch the graceful shutdown task in the background listening for termination signals.
+    graceful_shutdown(metrics_upkeep_task.clone(), dispatcher.shutdown_token()).await?;
+
+    dispatcher
         .dispatch_with_listener(listener, LoggingErrorHandler::with_custom_text("shortbot"))
         .await;
 
     metrics_upkeep_task.abort();
     info!("Gracefully closed ShortBot server");
+
+    Ok(())
+}
+
+async fn graceful_shutdown(
+    metrics_handler: Arc<JoinHandle<()>>,
+    bot_shutdown_token: ShutdownToken,
+) -> Result<(), ServiceError> {
+    let mut stream = signal(SignalKind::terminate())
+        .map_err(|e| ServiceError::UnexpectedError(e.to_string()))?;
+
+    tokio::task::spawn(async move {
+        let _ = stream.recv().await;
+        let shutdown_status = bot_shutdown_token.shutdown();
+        if let Err(e) = shutdown_status {
+            error!("Error shutting down bot: {e}");
+        }
+        metrics_handler.abort();
+        info!("Received termination signal. Shutting down gracefully");
+
+        exit(0);
+    });
 
     Ok(())
 }
