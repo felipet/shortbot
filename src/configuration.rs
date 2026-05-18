@@ -121,11 +121,11 @@ pub struct ValkeySettings {
 impl ValkeySettings {
     pub fn connection_config(&self) -> AsyncConnectionConfig {
         AsyncConnectionConfig::new()
-            .set_connection_timeout(Duration::from_secs(
+            .set_connection_timeout(Some(Duration::from_secs(
                 self.valkey_conn_timeout.unwrap_or(VALKEY_CONN_TIMEOUT),
-            ))
-            .set_response_timeout(Duration::from_secs(
+            )))
+            .set_response_timeout(Some(Duration::from_secs(
                 self.valkey_resp_timeout.unwrap_or(VALKEY_RESP_TIMEOUT),
-            ))
+            )))
     }
 }

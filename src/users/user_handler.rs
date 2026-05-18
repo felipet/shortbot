@@ -152,7 +152,7 @@ impl UserHandler {
                 .access_level),
             Err(e) => match e.downcast_ref::<RedisError>() {
                 Some(redis_err) => {
-                    if redis_err.kind() == redis::ErrorKind::TypeError {
+                    if redis_err.kind() == redis::ErrorKind::Parse {
                         warn!("Access level of non-registered user requested");
                         Ok(BotAccess::Free)
                     } else {
@@ -198,7 +198,7 @@ impl UserHandler {
             }
             Err(e) => match e.downcast_ref::<RedisError>() {
                 Some(redis_err) => {
-                    if redis_err.kind() == redis::ErrorKind::TypeError {
+                    if redis_err.kind() == redis::ErrorKind::Parse {
                         error!("Attempt to refresh the access time of a non-registered user");
                         Err(Box::new(UserError::ClientNotRegistered))
                     } else {
@@ -287,7 +287,7 @@ impl UserHandler {
                 .subscriptions),
             Err(e) => match e.downcast_ref::<RedisError>() {
                 Some(redis_err) => {
-                    if redis_err.kind() == redis::ErrorKind::TypeError {
+                    if redis_err.kind() == redis::ErrorKind::Parse {
                         error!("Attempt to get subscriptions of a non-registered user");
                         Err(Box::new(UserError::ClientNotRegistered))
                     } else {
@@ -332,7 +332,7 @@ impl UserHandler {
             }
             Err(e) => match e.downcast_ref::<RedisError>() {
                 Some(redis_err) => {
-                    if redis_err.kind() == redis::ErrorKind::TypeError {
+                    if redis_err.kind() == redis::ErrorKind::Parse {
                         error!("Attempt to add subscriptions of a non-registered user");
                         Err(Box::new(UserError::ClientNotRegistered))
                     } else {
@@ -380,7 +380,7 @@ impl UserHandler {
             }
             Err(e) => match e.downcast_ref::<RedisError>() {
                 Some(redis_err) => {
-                    if redis_err.kind() == redis::ErrorKind::TypeError {
+                    if redis_err.kind() == redis::ErrorKind::Parse {
                         error!("Attempt to remove subscriptions of a non-registered user");
                         Err(Box::new(UserError::ClientNotRegistered))
                     } else {
@@ -417,7 +417,7 @@ impl UserHandler {
             }
             Err(e) => match e.downcast_ref::<RedisError>() {
                 Some(redis_err) => {
-                    if redis_err.kind() == redis::ErrorKind::TypeError {
+                    if redis_err.kind() == redis::ErrorKind::Parse {
                         error!("Attempt to modify access of a non-registered user");
                         Err(Box::new(UserError::ClientNotRegistered))
                     } else {
@@ -448,7 +448,7 @@ impl UserHandler {
                 .map_err(|e| UserError::SerialisationError(e.to_string()))?),
             Err(e) => match e.downcast_ref::<RedisError>() {
                 Some(redis_err) => {
-                    if redis_err.kind() == redis::ErrorKind::TypeError {
+                    if redis_err.kind() == redis::ErrorKind::Parse {
                         warn!("Returning default config for non-registered user");
                         Ok(UserConfig::default())
                     } else {
