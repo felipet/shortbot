@@ -43,7 +43,7 @@
 //!   -d '{"req_type":"BroadcastAllMessage","req_payload":"{\"message_en\":\"Eng message\",\"message_es\":\"Spa message\"}"}'
 //! ```
 
-use crate::{WebServerState, errors::BotError, users::UserConfig};
+use crate::{errors::BotError, users::UserConfig, webserver::WebServerState};
 use axum::{
     Json,
     extract::{Request, State},

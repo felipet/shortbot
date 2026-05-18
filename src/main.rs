@@ -14,23 +14,18 @@
 
 //! Main file of the Shortbot
 
-use axum::{
-    Router, middleware,
-    routing::{get, post},
-};
 use secrecy::ExposeSecret;
 use shortbot::prelude::*;
+use shortbot::webserver::{setup_bot_router, setup_webserver};
 use shortbot::{
-    configuration::Settings, endpoints::webhook, handlers, telemetry::configure_tracing,
-    users::UserHandler,
+    configuration::Settings, handlers, telemetry::configure_tracing, users::UserHandler,
 };
-use std::{net::SocketAddr, process::exit, str::FromStr, sync::Arc};
+use std::{process::exit, sync::Arc};
 use teloxide::{
     adaptors::throttle::Limits, dispatching::dialogue::InMemStorage,
-    payloads::SetMyCommandsSetters, prelude::*, requests::RequesterExt, update_listeners::webhooks,
+    payloads::SetMyCommandsSetters, prelude::*, requests::RequesterExt,
     utils::command::BotCommands,
 };
-use tokio::{net::TcpListener, sync::mpsc};
 use tracing::{debug, error, info};
 
 #[tokio::main]
@@ -68,8 +63,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Instance a throttled bot, to avoid reaching the message limits when broadcast messages are sent.
     let bot = Bot::new(settings.application.api_token.expose_secret()).throttle(Limits::default());
 
-    // MPSC channel to trigger short position updates to users with subscriptions.
-    let (update_buffer_tx, update_buffer_rx) = mpsc::channel::<String>(UPDATE_BUFFER_SIZE);
+    let (listener, stop_future, tcp_listener, bot_router) =
+        setup_bot_router(bot.clone(), &settings).await?;
+
+    let (app, update_buffer_rx) = setup_webserver(
+        user_handler.clone(),
+        bot.clone(),
+        &settings.application.webhook_token,
+        bot_router,
+        metrics_handle,
+    )?;
 
     // Updates thread
     handlers::update_handler(
@@ -80,60 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )
     .await?;
 
-    // Build an Axum HTTP server.
-    let state = WebServerState {
-        user_handler: user_handler.clone(),
-        bot: bot.clone(),
-        webhook_token: settings.application.webhook_token,
-        update_buffer_tx,
-    };
-
-    let webook_router = Router::new()
-        .route("/webhook", post(webhook::webhook_handler))
-        .route_layer(middleware::from_fn_with_state(
-            state.clone(),
-            webhook::auth_client,
-        ));
-
-    let main_router = Router::new()
-        .route(
-            "/metrics",
-            get(move || async move { metrics_handle.render() }),
-        )
-        .merge(webook_router)
-        .with_state(state);
-
-    let http_server_address = SocketAddr::from_str(&format!(
-        "{}:{}",
-        &settings.application.http_server_host, settings.application.http_server_port
-    ))
-    .expect("Failed to build a socket using the configuration");
-
-    let tcp_listener = TcpListener::bind(http_server_address)
-        .await
-        .expect("Failed to bind to the provided address");
-
     info!("Started ShortBot server");
-
-    // Build a listener based on the axum server.
-    let (listener, stop_future, bot_router) = webhooks::axum_to_router(
-        bot.clone(),
-        webhooks::Options::new(
-            http_server_address,
-            format!(
-                "{}{}",
-                settings.application.webhook_url, settings.application.webhook_path
-            )
-            .parse()
-            .unwrap(),
-        ),
-    )
-    .await?;
-
-    // Launch the Axum server.
-    let app = axum::Router::new()
-        .nest("/adm", main_router)
-        .fallback_service(bot_router);
 
     tokio::task::spawn(async move {
         axum::serve(tcp_listener, app)

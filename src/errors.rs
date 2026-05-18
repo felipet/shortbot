@@ -53,6 +53,14 @@ pub enum BotError {
     InternalServerError,
 }
 
+#[derive(Debug, Error)]
+pub enum ServiceError {
+    #[error("Failed to initialize the web server: {0}")]
+    WebServerInitError(String),
+    #[error("Failed to initialize the bot web server: {0}")]
+    BotInitError(String),
+}
+
 impl IntoResponse for BotError {
     fn into_response(self) -> Response {
         let (status, error_message) = match self {
